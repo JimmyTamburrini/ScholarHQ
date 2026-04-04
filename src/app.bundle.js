@@ -558,6 +558,28 @@
     `;
   }
 
+  function renderResearchSources(sources) {
+    if (!sources.length) {
+      return `<p class="coach-empty-copy">No source links were returned for this plan yet.</p>`;
+    }
+
+    return `
+      <ul class="research-source-list">
+        ${sources
+          .map(function (source) {
+            return `
+              <li>
+                <a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">
+                  ${escapeHtml(source.title || source.url)}
+                </a>
+              </li>
+            `;
+          })
+          .join("")}
+      </ul>
+    `;
+  }
+
   function renderAiCoachPanel(sessions, grades, classGradebooks, aiCoach) {
     const hasData = sessions.length > 0 || grades.length > 0 || Object.keys(classGradebooks).length > 0;
 
@@ -653,7 +675,7 @@
             <p class="eyebrow">AI Study Plan</p>
             <h2>Generate your next study roadmap</h2>
           </div>
-          <p class="panel-copy">Build a realistic short study plan from your recent sessions, grades, and class workload so you know what to tackle next.</p>
+          <p class="panel-copy">Build a realistic short study plan from your recent sessions, grades, and class workload, then research your logged assignment or exam topics to suggest what you should actually study.</p>
         </div>
 
         <div class="coach-status-row">
@@ -713,12 +735,34 @@
                   </div>
                 </div>
 
+                <div class="coach-columns">
+                  <div class="coach-section">
+                    <p class="eyebrow">Researched Topics</p>
+                    ${renderCoachList(
+                      aiPlan.result.researchedTopics || [],
+                      "No researched topics were returned this time."
+                    )}
+                  </div>
+                  <div class="coach-section">
+                    <p class="eyebrow">What To Actually Study</p>
+                    ${renderCoachList(
+                      aiPlan.result.topicGuidance || [],
+                      "No topic guidance was returned this time."
+                    )}
+                  </div>
+                </div>
+
                 <div class="coach-section">
                   <p class="eyebrow">Execution Tips</p>
                   ${renderCoachList(
                     aiPlan.result.tips || [],
                     "No execution tips were returned this time."
                   )}
+                </div>
+
+                <div class="coach-section">
+                  <p class="eyebrow">Research Sources</p>
+                  ${renderResearchSources(aiPlan.result.sources || [])}
                 </div>
               </div>
             `
@@ -807,6 +851,7 @@
       render();
     }
   }
+
 
   function getGradeComparisonRows(sessions, grades, classGradebooks) {
     const manualGradeRows = grades.map(function (grade) {

@@ -73,7 +73,7 @@ If you prefer, you can also serve it with a small local server.
 This project now includes AI features on the Home page:
 
 - `AI Study Coach`
-- `AI Study Plan`
+- `AI Study Plan` with researched topic guidance from your logged assignments and exams
 
 To enable it:
 

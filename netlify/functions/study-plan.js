@@ -54,8 +54,58 @@ function normalizePlanResult(parsed, rawText) {
     summary: String((parsed && parsed.summary) || rawText || "The AI generated a study plan.").trim(),
     focusAreas: normalizeList(parsed && parsed.focusAreas),
     studyBlocks: normalizeList(parsed && parsed.studyBlocks),
+    researchedTopics: normalizeList(parsed && parsed.researchedTopics),
+    topicGuidance: normalizeList(parsed && parsed.topicGuidance),
     tips: normalizeList(parsed && parsed.tips),
+    sources: [],
   };
+}
+
+function extractSources(payload) {
+  if (!payload || !Array.isArray(payload.output)) {
+    return [];
+  }
+
+  const collected = [];
+
+  payload.output.forEach(function (item) {
+    if (item && item.type === "web_search_call" && item.action && Array.isArray(item.action.sources)) {
+      item.action.sources.forEach(function (source) {
+        if (source && source.url) {
+          collected.push({
+            title: source.title || source.url,
+            url: source.url,
+          });
+        }
+      });
+    }
+
+    if (item && item.type === "message" && Array.isArray(item.content)) {
+      item.content.forEach(function (contentItem) {
+        if (!contentItem || !Array.isArray(contentItem.annotations)) {
+          return;
+        }
+
+        contentItem.annotations.forEach(function (annotation) {
+          if (annotation && annotation.type === "url_citation" && annotation.url) {
+            collected.push({
+              title: annotation.title || annotation.url,
+              url: annotation.url,
+            });
+          }
+        });
+      });
+    }
+  });
+
+  const seen = new Set();
+  return collected.filter(function (source) {
+    if (seen.has(source.url)) {
+      return false;
+    }
+    seen.add(source.url);
+    return true;
+  }).slice(0, 8);
 }
 
 exports.handler = async function (event) {
@@ -118,13 +168,17 @@ exports.handler = async function (event) {
       },
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || "gpt-5-mini",
+        tools: [{ type: "web_search" }],
+        include: ["web_search_call.action.sources"],
         input:
           "You are an academic study-planning assistant for a student dashboard named Productivity Hub. " +
           "Create a realistic short-term study plan from the student's recent study behavior, grades, and class workload. " +
+          "If the student has named assignments, quizzes, projects, chapters, or exams, use web search to research those topics and infer what they should actually study. " +
           "Return only valid JSON with this exact shape: " +
-          '{ "headline": string, "summary": string, "focusAreas": string[], "studyBlocks": string[], "tips": string[] }. ' +
+          '{ "headline": string, "summary": string, "focusAreas": string[], "studyBlocks": string[], "researchedTopics": string[], "topicGuidance": string[], "tips": string[] }. ' +
           "Be practical, encouraging, and specific. " +
           "Recommend concrete study blocks with class names, task types, and realistic durations. " +
+          "Use the researched assignment names and exam topics to say what concepts, methods, problem types, or vocabulary the student should actually focus on. " +
           "Keep each list to at most 5 items and avoid markdown.\n\n" +
           "Student dashboard data:\n" +
           JSON.stringify(payload),
@@ -153,6 +207,7 @@ exports.handler = async function (event) {
     const rawText = extractResponseText(responsePayload);
     const parsed = JSON.parse(stripCodeFences(rawText));
     const plan = normalizePlanResult(parsed, rawText);
+    plan.sources = extractSources(responsePayload);
 
     return {
       statusCode: 200,
