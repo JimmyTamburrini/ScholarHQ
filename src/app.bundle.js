@@ -529,6 +529,90 @@
     };
   }
 
+  function buildAiPlanPayload(sessions, grades, classGradebooks) {
+    const recentSessions = sessions
+      .slice()
+      .sort(function (a, b) {
+        return new Date(b.date) - new Date(a.date);
+      })
+      .slice(0, 12);
+
+    const researchedTopics = [];
+    const seenTopics = new Set();
+
+    recentSessions.forEach(function (session) {
+      const topic = String(session.assignment || "").trim();
+      const subject = String(session.subject || "").trim();
+      if (!topic || !subject) {
+        return;
+      }
+
+      const key = `${subject.toLowerCase()}::${topic.toLowerCase()}`;
+      if (seenTopics.has(key) || researchedTopics.length >= 3) {
+        return;
+      }
+
+      seenTopics.add(key);
+      researchedTopics.push({
+        subject: subject,
+        topic: topic,
+        assignmentType: session.assignmentType || "",
+      });
+    });
+
+    const classSummaries = Object.keys(classGradebooks)
+      .sort()
+      .slice(0, 6)
+      .map(function (subject) {
+        const entries = classGradebooks[subject] || [];
+        const metrics = calculateClassMetrics(entries);
+        return {
+          subject: subject,
+          weightedAverage: Math.round(metrics.weightedAverage * 10) / 10,
+          totalWeight: Math.round(metrics.totalWeight * 10) / 10,
+          upcomingItems: entries
+            .slice()
+            .sort(function (a, b) {
+              return new Date(a.date) - new Date(b.date);
+            })
+            .slice(0, 3)
+            .map(function (entry) {
+              return {
+                name: entry.name,
+                itemType: entry.itemType,
+                date: entry.date,
+                gradePercent: entry.gradePercent,
+                weightPercent: entry.weightPercent,
+              };
+            }),
+        };
+      });
+
+    return {
+      generatedAt: new Date().toISOString(),
+      recentSessions: recentSessions.map(function (session) {
+        return {
+          subject: session.subject,
+          assignment: session.assignment,
+          assignmentType: session.assignmentType,
+          date: session.date,
+          durationMinutes: session.durationMinutes,
+          category: session.category,
+        };
+      }),
+      recentGrades: grades.slice(0, 8).map(function (grade) {
+        return {
+          subject: grade.subject,
+          examName: grade.examName,
+          examDate: grade.examDate,
+          gradePercent: grade.gradePercent,
+        };
+      }),
+      researchedTopics: researchedTopics,
+      classSummaries: classSummaries,
+    };
+  }
+
   function formatCoachTimestamp(value) {
     if (!value) {
       return "";
@@ -827,7 +911,7 @@
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(buildAiCoachPayload(state.sessions, state.grades, state.classGradebooks)),
+        body: JSON.stringify(buildAiPlanPayload(state.sessions, state.grades, state.classGradebooks)),
       });
 
       const responseText = await response.text();

@@ -203,8 +203,8 @@ exports.handler = async function (event) {
     const payload = JSON.parse(event.body || "{}");
     const hasData =
       (Array.isArray(payload.recentSessions) && payload.recentSessions.length > 0) ||
-      (Array.isArray(payload.manualGrades) && payload.manualGrades.length > 0) ||
-      (Array.isArray(payload.classSnapshots) && payload.classSnapshots.length > 0);
+      (Array.isArray(payload.recentGrades) && payload.recentGrades.length > 0) ||
+      (Array.isArray(payload.classSummaries) && payload.classSummaries.length > 0);
 
     if (!hasData) {
       return {
@@ -223,13 +223,13 @@ exports.handler = async function (event) {
         Authorization: "Bearer " + process.env.OPENAI_API_KEY,
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-5",
+        model: process.env.OPENAI_MODEL || "gpt-4.1",
         tools: [{ type: "web_search" }],
         tool_choice: "auto",
         input:
           "You are an academic study-planning assistant for a student dashboard named Productivity Hub. " +
-          "Create a realistic short-term study plan from the student's recent study behavior, grades, and class workload. " +
-          "If the student has named assignments, quizzes, projects, chapters, or exams, use web search to research those topics and infer what they should actually study. " +
+          "Create a concise short-term study plan from the student's recent study behavior, grades, and class workload. " +
+          "If the student has named assignments, quizzes, projects, chapters, or exams in researchedTopics, use web search to research only those topics and infer what they should actually study. " +
           "Prefer returning valid JSON with this exact shape: " +
           '{ "headline": string, "summary": string, "focusAreas": string[], "studyBlocks": string[], "researchedTopics": string[], "topicGuidance": string[], "tips": string[] }. ' +
           "If JSON is not possible, return plain text in exactly this labeled format: " +
@@ -237,6 +237,7 @@ exports.handler = async function (event) {
           "For the list sections, use bullet points starting with '- '. " +
           "Be practical, encouraging, and specific. " +
           "Recommend concrete study blocks with class names, task types, and realistic durations. " +
+          "Keep the response short enough for a quick dashboard card. " +
           "Use the researched assignment names and exam topics to say what concepts, methods, problem types, or vocabulary the student should actually focus on. " +
           "Keep each list to at most 5 items and avoid markdown tables.\n\n" +
           "Student dashboard data:\n" +
