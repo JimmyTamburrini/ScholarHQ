@@ -69,6 +69,65 @@ function tryParseJson(value) {
   }
 }
 
+function extractSection(text, label, nextLabels) {
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const nextPattern = nextLabels
+    .map(function (nextLabel) {
+      return nextLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    })
+    .join("|");
+  const regex = new RegExp(
+    escapedLabel + "\\s*:\\s*([\\s\\S]*?)(?:\\n(?:" + nextPattern + ")\\s*:|$)",
+    "i"
+  );
+  const match = String(text || "").match(regex);
+  return match ? match[1].trim() : "";
+}
+
+function parseBullets(text) {
+  return String(text || "")
+    .split("\n")
+    .map(function (line) {
+      return line.replace(/^[-*]\s*/, "").trim();
+    })
+    .filter(Boolean)
+    .slice(0, 5);
+}
+
+function parsePlanText(rawText) {
+  const sectionOrder = [
+    "HEADLINE",
+    "SUMMARY",
+    "FOCUS AREAS",
+    "STUDY BLOCKS",
+    "RESEARCHED TOPICS",
+    "TOPIC GUIDANCE",
+    "TIPS",
+  ];
+
+  const headline = extractSection(rawText, "HEADLINE", sectionOrder.slice(1));
+  const summary = extractSection(rawText, "SUMMARY", sectionOrder.slice(2));
+  const focusAreas = parseBullets(extractSection(rawText, "FOCUS AREAS", sectionOrder.slice(3)));
+  const studyBlocks = parseBullets(extractSection(rawText, "STUDY BLOCKS", sectionOrder.slice(4)));
+  const researchedTopics = parseBullets(extractSection(rawText, "RESEARCHED TOPICS", sectionOrder.slice(5)));
+  const topicGuidance = parseBullets(extractSection(rawText, "TOPIC GUIDANCE", sectionOrder.slice(6)));
+  const tips = parseBullets(extractSection(rawText, "TIPS", []));
+
+  if (!headline && !summary && !focusAreas.length && !studyBlocks.length && !topicGuidance.length) {
+    return null;
+  }
+
+  return {
+    headline: headline || "Your study plan is ready.",
+    summary: summary || rawText || "The AI generated a study plan.",
+    focusAreas: focusAreas,
+    studyBlocks: studyBlocks,
+    researchedTopics: researchedTopics,
+    topicGuidance: topicGuidance,
+    tips: tips,
+  };
+}
+
 function extractSources(payload) {
   if (!payload || !Array.isArray(payload.output)) {
     return [];
@@ -182,12 +241,15 @@ exports.handler = async function (event) {
           "You are an academic study-planning assistant for a student dashboard named Productivity Hub. " +
           "Create a realistic short-term study plan from the student's recent study behavior, grades, and class workload. " +
           "If the student has named assignments, quizzes, projects, chapters, or exams, use web search to research those topics and infer what they should actually study. " +
-          "Return only valid JSON with this exact shape: " +
+          "Prefer returning valid JSON with this exact shape: " +
           '{ "headline": string, "summary": string, "focusAreas": string[], "studyBlocks": string[], "researchedTopics": string[], "topicGuidance": string[], "tips": string[] }. ' +
+          "If JSON is not possible, return plain text in exactly this labeled format: " +
+          "HEADLINE:, SUMMARY:, FOCUS AREAS:, STUDY BLOCKS:, RESEARCHED TOPICS:, TOPIC GUIDANCE:, TIPS:. " +
+          "For the list sections, use bullet points starting with '- '. " +
           "Be practical, encouraging, and specific. " +
           "Recommend concrete study blocks with class names, task types, and realistic durations. " +
           "Use the researched assignment names and exam topics to say what concepts, methods, problem types, or vocabulary the student should actually focus on. " +
-          "Keep each list to at most 5 items and avoid markdown.\n\n" +
+          "Keep each list to at most 5 items and avoid markdown tables.\n\n" +
           "Student dashboard data:\n" +
           JSON.stringify(payload),
       }),
@@ -213,7 +275,7 @@ exports.handler = async function (event) {
     }
 
     const rawText = extractResponseText(responsePayload);
-    const parsed = tryParseJson(rawText);
+    const parsed = tryParseJson(rawText) || parsePlanText(rawText);
     if (!parsed) {
       return {
         statusCode: 502,
@@ -221,7 +283,7 @@ exports.handler = async function (event) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          error: "The AI study plan response was not valid JSON. Try again, or set OPENAI_MODEL to gpt-5 in Netlify if it is currently overridden.",
+          error: "The AI study plan response could not be parsed cleanly. Try again once, and if it keeps failing we can relax the planner format further.",
         }),
       };
     }
