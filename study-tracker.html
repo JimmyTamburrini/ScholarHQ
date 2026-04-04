@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Study Tracker (Single File)</title>
+  <style>
+    body{font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;background:#18453B;color:#171a29;margin:0}
+    .container{max-width:1240px;margin:24px auto;padding:0 24px}
+    .card{background:#FFFFFF;border:2px solid #000;border-radius:12px;padding:16px;margin-bottom:14px}
+    .grid{display:grid;row-gap:20px;column-gap:34px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+    label{display:block;font-weight:600;margin:6px 0}
+    input,textarea,select,button{width:100%;padding:10px;border:2px solid #000;border-radius:8px;margin-top:8px}
+    button{width:auto;background:#4f65dd;color:#fff;font-weight:700;cursor:pointer}
+    table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #e4e9fb;text-align:left}
+    .delete-btn{background:#fff0f0;color:#b42318;border:1px solid #f6c6c4;font-weight:700;padding:6px 10px}
+    form label{margin-bottom:14px}
+    textarea{min-height:120px}
+    #classListInput{display:block;width:min(100%,150ch);max-width:150ch;margin-left:auto;margin-right:auto}
+    .card input,.card select{max-width:10ch}
+    .card .class-list-box{max-width:150ch}
+    #classSelect{max-width:20ch}
+    #studyDate{max-width:20ch}
+    #studyForm{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:34px;row-gap:14px}
+    #studyForm .grid{grid-column:1/-1;grid-template-columns:repeat(4,minmax(0,1fr));justify-items:center;align-items:start}
+    #studyForm .grid label{width:100%;text-align:center}
+    #studyForm > button{grid-column:1/-1;justify-self:center;margin-top:10px}
+    #saveClassesBtn{display:block;margin:14px auto 0}
+    #classChart{width:100%;max-width:100%;background:#fff;border:2px solid #000;border-radius:10px;display:block}
+  </style>
+</head>
+<body>
+<main class="container">
+  <h1>Study Tracker (Single File)</h1>
+  <p>Use this file alone — no folder path or scripts needed.</p>
+
+  <section class="card">
+    <h2>Class List</h2>
+    <label>Classes (one per line)<textarea id="classListInput" class="class-list-box" rows="4" placeholder="Math&#10;Science"></textarea></label>
+    <button id="saveClassesBtn" type="button">Save Class List</button>
+  </section>
+
+  <section class="card">
+    <h2>Add Session</h2>
+    <form id="studyForm">
+      <div class="grid">
+        <label>Date<input id="studyDate" type="date" required /></label>
+        <label>Hours Studied<input id="hoursStudied" type="number" min="0" step="0.01" required /></label>
+        <label>Screen Time (hours)<input id="screenTime" type="number" min="0" step="0.01" required /></label>
+        <label>Class<select id="classSelect" required><option value="">Select a class</option></select></label>
+      </div>
+      <button type="submit">Add Session</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Class Time Graph</h2>
+    <canvas id="classChart" width="1000" height="320" aria-label="Class hours chart"></canvas>
+  </section>
+
+  <section class="card">
+    <h2>Summary</h2>
+    <p>Total Hours: <strong id="totalHours">0.00</strong></p>
+    <p>Total Screen Time: <strong id="totalScreenTime">0.00</strong></p>
+  </section>
+
+  <section class="card">
+    <h2>Sessions</h2>
+    <table>
+      <thead><tr><th>Date</th><th>Class</th><th>Hours</th><th>Screen</th><th>Actions</th></tr></thead>
+      <tbody id="sessionsBody"></tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+const K={classList:'studyTracker.classList',sessions:'studyTracker.sessions'};
+const byId=(id)=>document.getElementById(id);
+const classListInput=byId('classListInput'); const saveClassesBtn=byId('saveClassesBtn');
+const studyForm=byId('studyForm'); const studyDate=byId('studyDate'); const hoursStudied=byId('hoursStudied');
+const screenTime=byId('screenTime'); const classSelect=byId('classSelect');
+const totalHours=byId('totalHours'); const totalScreenTime=byId('totalScreenTime');
+const sessionsBody=byId('sessionsBody'); const classChart=byId('classChart');
+const get=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
+const set=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const getClassList=()=>get(K.classList,[]); const getSessions=()=>get(K.sessions,[]);
+const setClassList=(v)=>set(K.classList,v); const setSessions=(v)=>set(K.sessions,v);
+const parseClasses=(t)=>[...new Set(t.split('\n').map(s=>s.trim()).filter(Boolean))];
+function ensureIds(){const sessions=getSessions();let changed=false;const next=sessions.map(s=>{if(s.id)return s;changed=true;return {...s,id:`${Date.now()}-${Math.random().toString(36).slice(2,8)}`};});if(changed)setSessions(next);}
+function deleteById(id){setSessions(getSessions().filter(s=>s.id!==id));render();}
+function refreshClassSelect(){const classes=getClassList();classSelect.innerHTML='<option value="">Select a class</option>';classes.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;classSelect.appendChild(o);});}
+function drawChart(sessions){if(!classChart)return;const ctx=classChart.getContext('2d');if(!ctx)return;const totals=new Map();sessions.forEach(s=>{const k=s.date||'Unknown';if(!totals.has(k))totals.set(k,{h:0,s:0});const b=totals.get(k);b.h+=Number(s.hoursStudied);b.s+=Number(s.screenTime);});const classes=[...totals.keys()].sort();const h=classes.map(c=>totals.get(c).h);const sc=classes.map(c=>totals.get(c).s);const w=classChart.width,ht=classChart.height;ctx.clearRect(0,0,w,ht);ctx.fillStyle='#fff';ctx.fillRect(0,0,w,ht);if(!classes.length){ctx.fillStyle='#111';ctx.font='16px Segoe UI';ctx.fillText('No sessions yet.',20,30);return;}const p={l:60,r:30,t:30,b:80},cw=w-p.l-p.r,ch=ht-p.t-p.b,yMax=Math.max(...h,...sc,1),step=classes.length>1?cw/(classes.length-1):0;const toY=v=>p.t+ch-(v/yMax)*ch;ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.l,p.t);ctx.lineTo(p.l,p.t+ch);ctx.lineTo(p.l+cw,p.t+ch);ctx.stroke();const line=(vals,col)=>{ctx.strokeStyle=col;ctx.fillStyle=col;ctx.beginPath();vals.forEach((v,i)=>{const x=p.l+i*step,y=toY(v);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();vals.forEach((v,i)=>{const x=p.l+i*step,y=toY(v);ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();});};line(h,'#2f66ff');line(sc,'#d92d20');ctx.fillStyle='#111';ctx.font='12px Segoe UI';classes.forEach((n,i)=>{const x=p.l+i*step;ctx.save();ctx.translate(x,p.t+ch+16);ctx.rotate(-0.35);ctx.fillText(n,0,0);ctx.restore();});ctx.fillStyle='#2f66ff';ctx.fillRect(w-230,14,14,14);ctx.fillStyle='#111';ctx.fillText('Hours Studied',w-210,26);ctx.fillStyle='#d92d20';ctx.fillRect(w-120,14,14,14);ctx.fillStyle='#111';ctx.fillText('Screen Time',w-100,26);}
+function render(){
+  const sessions=getSessions().sort((a,b)=>a.date.localeCompare(b.date)); sessionsBody.innerHTML=''; let h=0,s=0;
+  sessions.forEach(x=>{h+=Number(x.hoursStudied);s+=Number(x.screenTime);const tr=document.createElement('tr'); tr.innerHTML=`<td>${x.date}</td><td>${x.className}</td><td>${Number(x.hoursStudied).toFixed(2)}</td><td>${Number(x.screenTime).toFixed(2)}</td><td><button type='button' class='delete-btn' data-id='${x.id}'>Delete</button></td>`; sessionsBody.appendChild(tr);});
+  totalHours.textContent=h.toFixed(2); totalScreenTime.textContent=s.toFixed(2); drawChart(sessions);
+}
+saveClassesBtn.addEventListener('click',()=>{setClassList(parseClasses(classListInput.value));refreshClassSelect();});
+sessionsBody.addEventListener('click',(e)=>{const t=e.target;if(t instanceof HTMLElement && t.matches('.delete-btn')){const id=t.dataset.id;if(id && window.confirm('Delete this study session?')) deleteById(id);}});
+studyForm.addEventListener('submit',(e)=>{e.preventDefault(); const date=studyDate.value,hrs=Number(hoursStudied.value),scr=Number(screenTime.value),className=classSelect.value; if(!date||!className||Number.isNaN(hrs)||Number.isNaN(scr)) return; const sessions=getSessions(); sessions.push({id:`${Date.now()}-${Math.random().toString(36).slice(2,8)}`,date,hoursStudied:hrs,screenTime:scr,className}); setSessions(sessions); studyForm.reset(); studyDate.valueAsDate=new Date(); render();});
+(function init(){ensureIds();studyDate.valueAsDate=new Date(); classListInput.value=getClassList().join('\n'); refreshClassSelect(); render();})();
+</script>
+</body>
+</html>

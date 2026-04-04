@@ -1,0 +1,2846 @@
+(function () {
+  /*
+    PRODUCTIVITY HUB - EDITING GUIDE
+
+    This file powers the entire website.
+
+    High-level structure:
+    1. Constants and localStorage keys
+    2. Data loading/saving helpers
+    3. Formatting helpers
+    4. Calculation helpers
+    5. Page rendering functions
+    6. Shared app state
+    7. Event handlers
+    8. Initial app startup
+
+    Most important places to edit:
+    - Navigation tabs: renderNavigation()
+    - Home page: renderHomePage()
+    - Sessions page: renderSessionsPage(), renderSessionForm(), renderSessionList()
+    - Charts page: renderWeeklyChart(), renderAnalyticsPage()
+    - Stats page: renderStatsPage()
+    - Classes page: renderClassesPage(), renderClassesOverview(), renderClassDetail()
+    - Calendar page: renderCalendarPage()
+    - Saved data shape: normalizeSession(), loadGrades(), loadClassGradebooks()
+    - Messages after saving: getEncouragementMessage(), showFlashMessage()
+
+    Important note:
+    This app uses "render everything again" style rendering.
+    That means when state changes, render() rebuilds the HTML inside #app.
+  */
+
+  // localStorage keys used to save study sessions, exam-grade comparisons, and class gradebooks.
+  const STORAGE_KEY = "study-tracker-sessions";
+  const GRADE_STORAGE_KEY = "study-tracker-grades";
+  const CLASS_GRADES_STORAGE_KEY = "study-tracker-class-gradebooks";
+  // Main HTML mount point where the whole app is drawn.
+  const appRoot = document.querySelector("#app");
+
+  function isValidDateString(value) {
+    return typeof value === "string" && !Number.isNaN(Date.parse(value));
+  }
+
+  function generateId() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
+
+    return `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  function normalizeSession(session) {
+    const now = new Date().toISOString();
+
+    return {
+      id: String(session.id || generateId()),
+      subject: String(session.subject || "").trim(),
+      assignment: String(session.assignment || "").trim(),
+      assignmentType: String(session.assignmentType || "").trim().toLowerCase(),
+      assignmentGradePercent:
+        session.assignmentGradePercent === "" || session.assignmentGradePercent === null || session.assignmentGradePercent === undefined
+          ? ""
+          : Number(session.assignmentGradePercent),
+      assignmentWeightPercent:
+        session.assignmentWeightPercent === "" || session.assignmentWeightPercent === null || session.assignmentWeightPercent === undefined
+          ? ""
+          : Number(session.assignmentWeightPercent),
+      linkedClassGradeId: String(session.linkedClassGradeId || ""),
+      date: isValidDateString(session.date) ? session.date : now.slice(0, 10),
+      durationMinutes: Number(session.durationMinutes || 0),
+      notes: String(session.notes || "").trim(),
+      category: String(session.category || "").trim(),
+      createdAt: isValidDateString(session.createdAt) ? session.createdAt : now,
+      updatedAt: isValidDateString(session.updatedAt) ? session.updatedAt : now,
+    };
+  }
+
+  // SESSION STORAGE
+  // These functions are responsible for reading/writing study-session data.
+  function loadSessions() {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        return [];
+      }
+
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed
+        .map(normalizeSession)
+        .filter((session) => session.subject && session.durationMinutes > 0)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function saveSessions(sessions) {
+    const normalized = sessions.map(normalizeSession);
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+  }
+
+  // EXAM GRADE STORAGE
+  // These functions save the grade-vs-study comparison section on the Stats page.
+  function loadGrades() {
+    try {
+      const raw = window.localStorage.getItem(GRADE_STORAGE_KEY);
+      if (!raw) {
+        return [];
+      }
+
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed
+        .map(function (entry) {
+          return {
+            id: String(entry.id || generateId()),
+            subject: String(entry.subject || "").trim(),
+            examName: String(entry.examName || "").trim(),
+            examDate: isValidDateString(entry.examDate) ? entry.examDate : new Date().toISOString().slice(0, 10),
+            gradePercent: Number(entry.gradePercent || 0),
+            notes: String(entry.notes || "").trim(),
+          };
+        })
+        .filter(function (entry) {
+          return entry.subject && entry.examName;
+        })
+        .sort(function (a, b) {
+          return new Date(b.examDate) - new Date(a.examDate);
+        });
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function saveGrades(grades) {
+    window.localStorage.setItem(GRADE_STORAGE_KEY, JSON.stringify(grades));
+  }
+
+  // CLASS GRADEBOOK STORAGE
+  // These functions save weighted assignment tables for each class.
+  function loadClassGradebooks() {
+    try {
+      const raw = window.localStorage.getItem(CLASS_GRADES_STORAGE_KEY);
+      if (!raw) {
+        return {};
+      }
+
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return {};
+      }
+
+      const normalized = {};
+      Object.keys(parsed).forEach(function (key) {
+        const entries = Array.isArray(parsed[key]) ? parsed[key] : [];
+        const subjectKey = String(key || "").trim();
+        if (!subjectKey) {
+          return;
+        }
+
+        normalized[subjectKey] = entries
+          .map(function (entry) {
+            const gradePercent = Number(entry.gradePercent);
+            const weightPercent = Number(entry.weightPercent);
+            return {
+              id: String(entry.id || generateId()),
+              name: String(entry.name || "").trim(),
+              itemType: String(entry.itemType || "assignment").trim().toLowerCase(),
+              date: isValidDateString(entry.date) ? entry.date : new Date().toISOString().slice(0, 10),
+              gradePercent: Number.isFinite(gradePercent) ? gradePercent : 0,
+              weightPercent: Number.isFinite(weightPercent) ? weightPercent : 0,
+            };
+          })
+          .filter(function (entry) {
+            return entry.name;
+          });
+      });
+
+      return normalized;
+    } catch (_error) {
+      return {};
+    }
+  }
+
+  function saveClassGradebooks(gradebooks) {
+    window.localStorage.setItem(CLASS_GRADES_STORAGE_KEY, JSON.stringify(gradebooks));
+  }
+
+  function createSession(input) {
+    const now = new Date().toISOString();
+    return normalizeSession({
+      id: generateId(),
+      subject: input.subject,
+      assignment: input.assignment,
+      assignmentType: input.assignmentType,
+      assignmentGradePercent: input.assignmentGradePercent,
+      assignmentWeightPercent: input.assignmentWeightPercent,
+      linkedClassGradeId: input.linkedClassGradeId,
+      date: input.date,
+      durationMinutes: input.durationMinutes,
+      notes: input.notes,
+      category: input.category,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  function updateSession(existing, input) {
+    return normalizeSession({
+      id: existing.id,
+      createdAt: existing.createdAt,
+      updatedAt: new Date().toISOString(),
+      subject: input.subject,
+      assignment: input.assignment,
+      assignmentType: input.assignmentType,
+      assignmentGradePercent: input.assignmentGradePercent,
+      assignmentWeightPercent: input.assignmentWeightPercent,
+      linkedClassGradeId: input.linkedClassGradeId,
+      date: input.date,
+      durationMinutes: input.durationMinutes,
+      notes: input.notes,
+      category: input.category,
+    });
+  }
+
+  // DISPLAY / FORMATTING HELPERS
+  // These turn raw numbers and dates into readable text for the UI.
+  function formatMinutes(totalMinutes) {
+    const minutes = Math.max(0, Number(totalMinutes) || 0);
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+
+    if (hours === 0) {
+      return `${remainingMinutes} min`;
+    }
+
+    if (remainingMinutes === 0) {
+      return `${hours} hr`;
+    }
+
+    return `${hours} hr ${remainingMinutes} min`;
+  }
+
+  function formatDate(value) {
+    const date = new Date(value);
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(date);
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  function formatClock(totalSeconds) {
+    const seconds = Math.max(0, Number(totalSeconds) || 0);
+    const hours = String(Math.floor(seconds / 3600)).padStart(2, "0");
+    const minutes = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
+    const remainingSeconds = String(seconds % 60).padStart(2, "0");
+    return `${hours}:${minutes}:${remainingSeconds}`;
+  }
+
+  // GPA + STATS HELPERS
+  // If you want a different GPA conversion scale later, edit percentageToGpa().
+  function percentageToGpa(percentage) {
+    if (percentage >= 93) return 4.0;
+    if (percentage >= 90) return 3.7;
+    if (percentage >= 87) return 3.3;
+    if (percentage >= 83) return 3.0;
+    if (percentage >= 80) return 2.7;
+    if (percentage >= 77) return 2.3;
+    if (percentage >= 73) return 2.0;
+    if (percentage >= 70) return 1.7;
+    if (percentage >= 67) return 1.3;
+    if (percentage >= 65) return 1.0;
+    return 0.0;
+  }
+
+  function formatGpa(value) {
+    return Number(value || 0).toFixed(2);
+  }
+
+  function getUniqueSubjects(sessions, grades, classGradebooks) {
+    const subjects = new Set();
+    sessions.forEach(function (session) {
+      if (session.subject) {
+        subjects.add(session.subject);
+      }
+    });
+    grades.forEach(function (grade) {
+      if (grade.subject) {
+        subjects.add(grade.subject);
+      }
+    });
+    Object.keys(classGradebooks || {}).forEach(function (subject) {
+      if (subject) {
+        subjects.add(String(subject).trim());
+      }
+    });
+    return Array.from(subjects).sort();
+  }
+
+  function calculateClassMetrics(entries) {
+    const weightedEntries = (entries || []).filter(function (entry) {
+      return (
+        entry &&
+        Number.isFinite(Number(entry.gradePercent)) &&
+        Number.isFinite(Number(entry.weightPercent)) &&
+        Number(entry.weightPercent) > 0
+      );
+    });
+
+    if (!weightedEntries.length) {
+      return { weightedAverage: 0, gpa: 0, totalWeight: 0 };
+    }
+
+    const totals = weightedEntries.reduce(
+      function (sum, entry) {
+        const gradePercent = Number(entry.gradePercent);
+        const weightPercent = Number(entry.weightPercent);
+        return {
+          weightedPoints: sum.weightedPoints + gradePercent * weightPercent,
+          totalWeight: sum.totalWeight + weightPercent,
+        };
+      },
+      { weightedPoints: 0, totalWeight: 0 }
+    );
+
+    const weightedAverage = totals.totalWeight > 0 ? totals.weightedPoints / totals.totalWeight : 0;
+
+    return {
+      weightedAverage: weightedAverage,
+      gpa: percentageToGpa(weightedAverage),
+      totalWeight: totals.totalWeight,
+    };
+  }
+
+  function removeLinkedClassGrade(gradebooks, linkedId) {
+    if (!linkedId) {
+      return gradebooks;
+    }
+
+    const next = {};
+    Object.keys(gradebooks).forEach(function (subject) {
+      next[subject] = (gradebooks[subject] || []).filter(function (entry) {
+        return entry.id !== linkedId;
+      });
+    });
+    return next;
+  }
+
+  function syncSessionAssignmentToClassGradebooks(existingSession, draft) {
+    const hasAssignmentGrade =
+      draft.assignment.trim() !== "" &&
+      draft.assignmentGradePercent !== "" &&
+      Number.isFinite(Number(draft.assignmentGradePercent));
+
+    let nextGradebooks = { ...state.classGradebooks };
+    let linkedClassGradeId = draft.linkedClassGradeId || (existingSession ? existingSession.linkedClassGradeId || "" : "");
+
+    if (!hasAssignmentGrade) {
+      if (linkedClassGradeId) {
+        nextGradebooks = removeLinkedClassGrade(nextGradebooks, linkedClassGradeId);
+      }
+
+      return {
+        gradebooks: nextGradebooks,
+        linkedClassGradeId: "",
+      };
+    }
+
+    const nextEntry = {
+      id: linkedClassGradeId || generateId(),
+      name: draft.assignment.trim(),
+      itemType: String(draft.assignmentType || "assignment").trim().toLowerCase(),
+      date: draft.date,
+      gradePercent: Number(draft.assignmentGradePercent),
+      weightPercent:
+        draft.assignmentWeightPercent !== "" && Number.isFinite(Number(draft.assignmentWeightPercent))
+          ? Number(draft.assignmentWeightPercent)
+          : 0,
+    };
+
+    linkedClassGradeId = nextEntry.id;
+    nextGradebooks = removeLinkedClassGrade(nextGradebooks, linkedClassGradeId);
+
+    const targetSubject = draft.subject.trim();
+    const existingEntries = nextGradebooks[targetSubject] || [];
+    nextGradebooks[targetSubject] = existingEntries.concat(nextEntry);
+
+    return {
+      gradebooks: nextGradebooks,
+      linkedClassGradeId: linkedClassGradeId,
+    };
+  }
+
+  function getEncouragementMessage(session) {
+    const subject = session.subject;
+    const messages = [
+      `Discipline compounds. ${subject} is logged and your progress is real.`,
+      `Productivity is built one block at a time. ${subject} is now on the board.`,
+      `You showed up for ${subject}. That consistency is what moves you forward.`,
+      `Small disciplined actions create big results. ${subject} has been added.`,
+      `Another focused session complete. ${subject} is one more proof of your momentum.`,
+    ];
+
+    return messages[Math.floor(Math.random() * messages.length)];
+  }
+
+  function calculateStudyMinutesBeforeExam(sessions, subject, examDate, assignmentName) {
+    const examTime = new Date(examDate);
+    const windowStart = new Date(examTime);
+    windowStart.setDate(examTime.getDate() - 14);
+    const normalizedAssignment = String(assignmentName || "").trim().toLowerCase();
+
+    return sessions
+      .filter(function (session) {
+        const sessionTime = new Date(session.date);
+        return (
+          session.subject === subject &&
+          String(session.category || "").trim().toLowerCase() === "study" &&
+          (
+            !normalizedAssignment ||
+            String(session.assignment || "").trim().toLowerCase() === normalizedAssignment
+          ) &&
+          sessionTime >= windowStart &&
+          sessionTime <= examTime
+        );
+      })
+      .reduce(function (sum, session) {
+        return sum + session.durationMinutes;
+      }, 0);
+  }
+
+  function getGradeComparisonRows(sessions, grades, classGradebooks) {
+    const manualGradeRows = grades.map(function (grade) {
+      return {
+        id: grade.id,
+        subject: grade.subject,
+        examName: grade.examName,
+        examDate: grade.examDate,
+        gradePercent: grade.gradePercent,
+        notes: grade.notes,
+        source: "manual",
+        itemType: "exam",
+        studyMinutes: calculateStudyMinutesBeforeExam(sessions, grade.subject, grade.examDate, grade.examName),
+      };
+    });
+
+    const classExamRows = [];
+    Object.keys(classGradebooks).forEach(function (subject) {
+      (classGradebooks[subject] || []).forEach(function (entry) {
+        classExamRows.push({
+          id: "class-" + entry.id,
+          subject: subject,
+          examName: entry.name,
+          examDate: entry.date,
+          gradePercent: entry.gradePercent,
+          notes: "Imported from " + subject + " class gradebook (" + (entry.itemType || "assignment") + ").",
+          source: "class-gradebook",
+          itemType: entry.itemType || "assignment",
+          studyMinutes: calculateStudyMinutesBeforeExam(sessions, subject, entry.date, entry.name),
+        });
+      });
+    });
+
+    return manualGradeRows.concat(classExamRows).sort(function (a, b) {
+      return new Date(a.examDate) - new Date(b.examDate);
+    });
+  }
+
+  // PAGE RENDERERS
+  // Each render function below returns an HTML string for one piece of the UI.
+  // Top navigation renderer. Add/remove pages here to change the main tabs.
+  function renderNavigation(currentPage) {
+    const pages = [
+      { key: "home", label: "Home" },
+      { key: "sessions", label: "Sessions" },
+      { key: "classes", label: "Classes" },
+      { key: "analytics", label: "Charts" },
+      { key: "stats", label: "Stats" },
+      { key: "calendar", label: "Calendar" },
+    ];
+
+    return `
+      <nav class="site-nav" aria-label="Primary navigation">
+        <div class="brand-block">
+          <p class="eyebrow">Study Tracker</p>
+          <h2>Productivity Hub</h2>
+        </div>
+        <div class="nav-links">
+          ${pages
+            .map(function (page) {
+              return `
+                <button
+                  class="${currentPage === page.key ? "nav-link active" : "nav-link"}"
+                  type="button"
+                  data-action="navigate"
+                  data-page="${page.key}"
+                >
+                  ${page.label}
+                </button>
+              `;
+            })
+            .join("")}
+        </div>
+      </nav>
+    `;
+  }
+
+  // Home page renderer. Best place to change the landing/dashboard content.
+  function renderHomePage(sessions, timerState) {
+    const totalMinutes = sessions.reduce(function (sum, session) {
+      return sum + session.durationMinutes;
+    }, 0);
+    const recentSubject = sessions.length ? sessions[0].subject : "No sessions yet";
+
+    return `
+      <section class="page-intro">
+        <div>
+          <p class="eyebrow">Project Home</p>
+          <h1>Build your study system, not just your study log.</h1>
+        </div>
+        <p class="hero-text">
+          This project is your interactive study dashboard: track sessions, review charts, and stay inside a focused study block without leaving the app.
+        </p>
+      </section>
+
+      <section class="home-grid">
+        <article class="panel feature-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">About The Project</p>
+              <h2>What this website does</h2>
+            </div>
+          </div>
+          <div class="feature-list">
+            <div class="feature-item">
+              <strong>Track sessions</strong>
+              <p>Log subjects, durations, notes, and categories for every study block.</p>
+            </div>
+            <div class="feature-item">
+              <strong>Review progress</strong>
+              <p>Compare time spent across weeks, days, and classes from the charts page.</p>
+            </div>
+            <div class="feature-item">
+              <strong>Stay focused</strong>
+              <p>Use the live study block timer whenever you want a simple built-in focus tool.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel timer-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Current Study Block</p>
+              <h2>Focus Timer</h2>
+            </div>
+            <p class="panel-copy">Start, pause, and reset a live timer for the study block you are working on right now.</p>
+          </div>
+          <div class="timer-display" id="timer-display">${formatClock(timerState.elapsedSeconds)}</div>
+          <div class="timer-status">
+            <span class="status-dot${timerState.isRunning ? " running" : ""}"></span>
+            <span>${timerState.isRunning ? "Timer running" : "Timer paused"}</span>
+          </div>
+          <div class="form-actions">
+            <button class="primary-button" type="button" data-action="toggle-timer">
+              ${timerState.isRunning ? "Pause Timer" : "Start Timer"}
+            </button>
+            <button class="secondary-button" type="button" data-action="reset-timer">Reset</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="summary-grid">
+        <article class="summary-card">
+          <p class="eyebrow">Sessions Logged</p>
+          <h2>${sessions.length}</h2>
+          <p>Total entries saved in this browser.</p>
+        </article>
+        <article class="summary-card">
+          <p class="eyebrow">Focus Time</p>
+          <h2>${formatMinutes(totalMinutes)}</h2>
+          <p>Total study time recorded so far.</p>
+        </article>
+        <article class="summary-card">
+          <p class="eyebrow">Latest Subject</p>
+          <h2>${escapeHtml(recentSubject)}</h2>
+          <p>Your most recently logged study focus.</p>
+        </article>
+      </section>
+    `;
+  }
+
+  function renderSummaryCards(sessions) {
+    const totalMinutes = sessions.reduce(function (sum, session) {
+      return sum + session.durationMinutes;
+    }, 0);
+    const subjectCount = new Set(
+      sessions.map(function (session) {
+        return session.subject;
+      })
+    ).size;
+    const currentWeekMinutes = sessions
+      .filter(function (session) {
+        const sessionDate = new Date(session.date);
+        const now = new Date();
+        const diffInDays = (now - sessionDate) / (1000 * 60 * 60 * 24);
+        return diffInDays >= 0 && diffInDays <= 7;
+      })
+      .reduce(function (sum, session) {
+        return sum + session.durationMinutes;
+      }, 0);
+
+    const subjectTotals = new Map();
+    sessions.forEach(function (session) {
+      const current = subjectTotals.get(session.subject) || 0;
+      subjectTotals.set(session.subject, current + session.durationMinutes);
+    });
+
+    const breakdown = Array.from(subjectTotals.entries())
+      .sort(function (a, b) {
+        return b[1] - a[1];
+      })
+      .slice(0, 4);
+
+    return `
+      <section class="summary-grid" aria-label="Study summary">
+        <article class="summary-card">
+          <p class="eyebrow">Total Focus Time</p>
+          <h2>${formatMinutes(totalMinutes)}</h2>
+          <p>Across ${sessions.length} logged study session${sessions.length === 1 ? "" : "s"}.</p>
+        </article>
+        <article class="summary-card">
+          <p class="eyebrow">Active Subjects</p>
+          <h2>${subjectCount}</h2>
+          <p>Distinct subjects tracked in your browser on this device.</p>
+        </article>
+        <article class="summary-card">
+          <p class="eyebrow">This Week</p>
+          <h2>${formatMinutes(currentWeekMinutes)}</h2>
+          <p>Recent effort from the last 7 days.</p>
+        </article>
+        <article class="summary-card subject-card">
+          <p class="eyebrow">Top Subjects</p>
+          ${
+            breakdown.length
+              ? `
+                <ul class="subject-breakdown">
+                  ${breakdown
+                    .map(function (entry) {
+                      return `
+                        <li>
+                          <span>${escapeHtml(entry[0])}</span>
+                          <strong>${formatMinutes(entry[1])}</strong>
+                        </li>
+                      `;
+                    })
+                    .join("")}
+                </ul>
+              `
+              : "<p>No subjects yet. Add your first session to see your study mix.</p>"
+          }
+        </article>
+      </section>
+    `;
+  }
+
+  function getWeekStart(dateInput) {
+    const date = new Date(dateInput);
+    date.setHours(0, 0, 0, 0);
+    const day = date.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    date.setDate(date.getDate() + diff);
+    return date;
+  }
+
+  function formatWeekLabel(date) {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+    }).format(date);
+  }
+
+  function getChartColor(index) {
+    const palette = [
+      "#b08a4b",
+      "#6c4c34",
+      "#3a4a32",
+      "#7b2d2f",
+      "#2a3444",
+      "#8b6647",
+      "#5f1f21",
+      "#c0b09d",
+    ];
+
+    return palette[index % palette.length];
+  }
+
+  function getSubjectColor(subject, subjects) {
+    const subjectIndex = subjects.indexOf(subject);
+    return getChartColor(subjectIndex < 0 ? 0 : subjectIndex);
+  }
+
+  function formatWeekdayLabel(date) {
+    return new Intl.DateTimeFormat("en-US", {
+      weekday: "short",
+    }).format(date);
+  }
+
+  function renderWeeklyChart(
+    sessions,
+    selectedSubject,
+    weekRange,
+    selectedWeekKey,
+    chartMode,
+    selectedDayKey
+  ) {
+    const subjects = Array.from(
+      new Set(
+        sessions.map(function (session) {
+          return session.subject;
+        })
+      )
+    ).sort();
+
+    const weekStarts = [];
+    const currentWeekStart = getWeekStart(new Date());
+    const currentWeekKey = currentWeekStart.toISOString().slice(0, 10);
+    const totalWeeks = weekRange || 6;
+    const isWeekBreakdownMode = chartMode === "week-breakdown";
+
+    for (let offset = totalWeeks - 1; offset >= 0; offset -= 1) {
+      const weekStart = new Date(currentWeekStart);
+      weekStart.setDate(currentWeekStart.getDate() - offset * 7);
+      weekStarts.push(weekStart);
+    }
+
+    const weeklyData = weekStarts.map(function (weekStart) {
+      const weekKey = weekStart.toISOString().slice(0, 10);
+      const subjectTotals = {};
+
+      subjects.forEach(function (subject) {
+        subjectTotals[subject] = 0;
+      });
+
+      sessions.forEach(function (session) {
+        const sessionWeekStart = getWeekStart(session.date).toISOString().slice(0, 10);
+        if (sessionWeekStart === weekKey) {
+          subjectTotals[session.subject] = (subjectTotals[session.subject] || 0) + session.durationMinutes;
+        }
+      });
+
+      return {
+        key: weekKey,
+        label: weekKey === currentWeekKey ? "This Week" : formatWeekLabel(weekStart),
+        totals: subjectTotals,
+      };
+    });
+
+    const resolvedWeekKey =
+      selectedWeekKey && weeklyData.some(function (week) { return week.key === selectedWeekKey; })
+        ? selectedWeekKey
+        : (weeklyData[weeklyData.length - 1] ? weeklyData[weeklyData.length - 1].key : null);
+
+    const activeSubjects =
+      selectedSubject === "all"
+        ? subjects
+        : subjects.filter(function (subject) {
+            return subject === selectedSubject;
+          });
+
+    const selectedWeek = weeklyData.find(function (week) {
+      return week.key === resolvedWeekKey;
+    });
+
+    const peakWeek = weeklyData.reduce(function (best, week) {
+      const total = activeSubjects.reduce(function (sum, subject) {
+        return sum + (week.totals[subject] || 0);
+      }, 0);
+
+      if (!best || total > best.total) {
+        return { key: week.key, label: week.label, total: total };
+      }
+
+      return best;
+    }, null);
+
+    const breakdownWeekStart = isWeekBreakdownMode
+      ? new Date((selectedWeekKey || currentWeekKey) + "T00:00:00")
+      : currentWeekStart;
+
+    const weekdayData = Array.from({ length: 7 }, function (_value, index) {
+      const day = new Date(breakdownWeekStart);
+      day.setDate(breakdownWeekStart.getDate() + index);
+      const dayKey = day.toISOString().slice(0, 10);
+      const totals = {};
+
+      subjects.forEach(function (subject) {
+        totals[subject] = 0;
+      });
+
+      sessions.forEach(function (session) {
+        if (session.date.slice(0, 10) === dayKey) {
+          totals[session.subject] = (totals[session.subject] || 0) + session.durationMinutes;
+        }
+      });
+
+      return {
+        key: dayKey,
+        label: formatWeekdayLabel(day),
+        totals: totals,
+      };
+    });
+
+    const chartPoints = isWeekBreakdownMode ? weekdayData : weeklyData;
+    const maxMinutes = Math.max(
+      60,
+      ...chartPoints.flatMap(function (point) {
+        return activeSubjects.map(function (subject) {
+          return point.totals[subject] || 0;
+        });
+      })
+    );
+    const selectedPointKey =
+      isWeekBreakdownMode
+        ? (selectedDayKey && weekdayData.some(function (day) { return day.key === selectedDayKey; })
+            ? selectedDayKey
+            : (weekdayData[weekdayData.length - 1] ? weekdayData[weekdayData.length - 1].key : null))
+        : resolvedWeekKey;
+
+    return `
+      <section class="panel chart-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Weekly Comparison</p>
+            <h2>${isWeekBreakdownMode ? "Study Time For Selected Week" : "Study Time Per Week Per Class"}</h2>
+          </div>
+          <p class="panel-copy">
+            ${
+              isWeekBreakdownMode
+                ? "This view breaks the selected week into all seven days so you can compare each day's study time by class."
+                : "Compare weekly study time by subject. Use the filters to isolate one class, change the date window, and inspect any week in detail."
+            }
+          </p>
+        </div>
+
+        <div class="chart-toolbar">
+          <div class="chart-controls" role="tablist" aria-label="Filter by subject">
+            <button
+              class="${selectedSubject === "all" ? "filter-chip active" : "filter-chip"}"
+              type="button"
+              data-action="filter-subject"
+              data-subject="all"
+            >
+              All Classes
+            </button>
+            ${subjects
+              .map(function (subject) {
+                return `
+                  <button
+                    class="${selectedSubject === subject ? "filter-chip active" : "filter-chip"}"
+                    type="button"
+                    data-action="filter-subject"
+                    data-subject="${escapeHtml(subject)}"
+                  >
+                    ${escapeHtml(subject)}
+                  </button>
+                `;
+              })
+              .join("")}
+          </div>
+
+          <div class="chart-controls" role="tablist" aria-label="Select week range">
+            <button
+              class="${isWeekBreakdownMode && selectedWeekKey === currentWeekKey ? "filter-chip active" : "filter-chip"}"
+              type="button"
+              data-action="jump-current-week"
+            >
+              Current Week
+            </button>
+            ${[4, 6, 12]
+              .map(function (range) {
+                return `
+                  <button
+                    class="${!isWeekBreakdownMode && weekRange === range ? "filter-chip active" : "filter-chip"}"
+                    type="button"
+                    data-action="filter-range"
+                    data-range="${range}"
+                  >
+                    ${range} Weeks
+                  </button>
+                `;
+              })
+              .join("")}
+          </div>
+        </div>
+
+        ${
+          subjects.length
+            ? `
+              <div class="chart-shell">
+                <div class="chart-insights">
+                  <div class="insight-pill">
+                    <span class="insight-label">Peak Week</span>
+                    <strong>${isWeekBreakdownMode ? `Week of ${escapeHtml(formatWeekLabel(breakdownWeekStart))}` : (peakWeek ? escapeHtml(peakWeek.label) : "None")}</strong>
+                    <span>${isWeekBreakdownMode ? "7 day view" : (peakWeek ? formatMinutes(peakWeek.total) : "0 min")}</span>
+                  </div>
+                  <div class="insight-pill">
+                    <span class="insight-label">Focused View</span>
+                    <strong>${selectedSubject === "all" ? "All Classes" : escapeHtml(selectedSubject)}</strong>
+                    <span>${isWeekBreakdownMode ? "7 day window" : `${weekRange} week window`}</span>
+                  </div>
+                </div>
+
+                <div class="chart-grid" style="grid-template-columns: repeat(${chartPoints.length}, minmax(0, 1fr));" aria-label="Weekly study time chart">
+                  ${chartPoints
+                    .map(function (point) {
+                      const totalForActiveSubjects = activeSubjects.reduce(function (sum, subject) {
+                        return sum + (point.totals[subject] || 0);
+                      }, 0);
+
+                      const groupedBars = activeSubjects
+                        .map(function (subject, index) {
+                          const minutes = point.totals[subject] || 0;
+                          const height = minutes ? Math.max((minutes / maxMinutes) * 100, 6) : 4;
+                          const subjectColor = getSubjectColor(subject, subjects);
+
+                          return `
+                            <div class="chart-bar-group">
+                              <div
+                                class="chart-segment${minutes ? "" : " empty"}"
+                                style="height:${height}%; background:${minutes ? subjectColor : "rgba(105, 123, 111, 0.28)"}"
+                                title="${escapeHtml(subject)}: ${formatMinutes(minutes)}"
+                              ></div>
+                            </div>
+                          `;
+                        })
+                        .join("");
+
+                      return `
+                        <button
+                          class="chart-column${point.key === selectedPointKey ? " selected" : ""}"
+                          type="button"
+                          data-action="${isWeekBreakdownMode ? "select-day" : "select-week"}"
+                          data-week="${point.key}"
+                        >
+                          <div class="chart-value">${totalForActiveSubjects ? formatMinutes(totalForActiveSubjects) : "0 min"}</div>
+                          <div class="chart-bar-frame" title="${escapeHtml(
+                            activeSubjects
+                              .map(function (subject) {
+                                const minutes = point.totals[subject] || 0;
+                                return `${subject}: ${formatMinutes(minutes)}`;
+                              })
+                              .join(" | ")
+                          )}">
+                            <div class="chart-stack grouped">
+                              ${groupedBars}
+                            </div>
+                          </div>
+                          <div class="chart-label">${point.label}</div>
+                        </button>
+                      `;
+                    })
+                    .join("")}
+                </div>
+
+                <div class="chart-legend">
+                  ${activeSubjects
+                    .map(function (subject) {
+                      return `
+                        <div class="legend-item">
+                          <span class="legend-swatch" style="background:${getSubjectColor(subject, subjects)}"></span>
+                          <span>${escapeHtml(subject)}</span>
+                        </div>
+                      `;
+                    })
+                    .join("")}
+                </div>
+
+                ${
+                  (isWeekBreakdownMode
+                    ? chartPoints.find(function (point) { return point.key === selectedPointKey; })
+                    : selectedWeek)
+                    ? `
+                      <div class="week-detail-card">
+                        <div>
+                          <p class="eyebrow">${isWeekBreakdownMode ? "Selected Day" : "Selected Week"}</p>
+                          <h3>${
+                            isWeekBreakdownMode
+                              ? escapeHtml((chartPoints.find(function (point) { return point.key === selectedPointKey; }) || { label: "" }).label)
+                              : `Week of ${escapeHtml(selectedWeek.label)}`
+                          }</h3>
+                        </div>
+                        <div class="week-detail-list">
+                          ${activeSubjects
+                            .map(function (subject) {
+                              const activePoint = isWeekBreakdownMode
+                                ? chartPoints.find(function (point) { return point.key === selectedPointKey; })
+                                : selectedWeek;
+                              const minutes = activePoint.totals[subject] || 0;
+                              return `
+                                <div class="week-detail-row">
+                                  <div class="week-detail-subject">
+                                    <span class="legend-swatch" style="background:${getSubjectColor(subject, subjects)}"></span>
+                                    <span>${escapeHtml(subject)}</span>
+                                  </div>
+                                  <strong>${formatMinutes(minutes)}</strong>
+                                </div>
+                              `;
+                            })
+                            .join("")}
+                        </div>
+                      </div>
+                    `
+                    : ""
+                }
+              </div>
+            `
+            : `
+              <div class="empty-state">
+                <h3>No chart data yet</h3>
+                <p>Add some study sessions and the weekly comparison graph will appear here automatically.</p>
+              </div>
+            `
+        }
+      </section>
+    `;
+  }
+
+  function renderGradeStudyChart() {
+    const allRows = getGradeComparisonRows(state.sessions, state.grades, state.classGradebooks);
+    const selectedClass = state.gradeChartClass;
+    const threshold = state.gradeChartThreshold;
+    const weeks = state.gradeChartWeeks;
+    const windowStart = new Date();
+    windowStart.setDate(windowStart.getDate() - weeks * 7);
+
+    const subjects = Array.from(
+      new Set(
+        allRows.map(function (row) {
+          return row.subject;
+        })
+      )
+    ).sort();
+
+    const filteredRows = allRows.filter(function (row) {
+      return (
+        (selectedClass === "all" || row.subject === selectedClass) &&
+        row.gradePercent >= threshold &&
+        new Date(row.examDate) >= windowStart
+      );
+    });
+
+    const maxStudyMinutes = Math.max(
+      60,
+      ...filteredRows.map(function (row) {
+        return row.studyMinutes;
+      }),
+      0
+    );
+
+    const trendPoints =
+      selectedClass !== "all" && filteredRows.length > 1
+        ? filteredRows
+            .map(function (row, index) {
+              const x = ((index + 0.5) / filteredRows.length) * 100;
+              const y = 100 - row.gradePercent;
+              return `${x},${y}`;
+            })
+            .join(" ")
+        : "";
+
+    return `
+      <section class="panel chart-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Grade Comparison</p>
+            <h2>Grade vs Study Time</h2>
+          </div>
+          <p class="panel-copy">See grade outcomes against prep time and filter the view by class, threshold, and recent weeks.</p>
+        </div>
+
+        <div class="analytics-filter-grid">
+          <label class="sort-control">
+            <span>Class</span>
+            <select data-action="grade-chart-class">
+              <option value="all" ${selectedClass === "all" ? "selected" : ""}>All Classes</option>
+              ${subjects
+                .map(function (subject) {
+                  return `<option value="${escapeHtml(subject)}" ${selectedClass === subject ? "selected" : ""}>${escapeHtml(subject)}</option>`;
+                })
+                .join("")}
+            </select>
+          </label>
+          <label class="sort-control">
+            <span>Grade Threshold</span>
+            <select data-action="grade-chart-threshold">
+              ${[0, 60, 70, 80, 90]
+                .map(function (value) {
+                  return `<option value="${value}" ${threshold === value ? "selected" : ""}>${value}% and up</option>`;
+                })
+                .join("")}
+            </select>
+          </label>
+          <label class="sort-control">
+            <span>Weeks</span>
+            <select data-action="grade-chart-weeks">
+              ${[4, 8, 12, 24]
+                .map(function (value) {
+                  return `<option value="${value}" ${weeks === value ? "selected" : ""}>Last ${value} weeks</option>`;
+                })
+                .join("")}
+            </select>
+          </label>
+        </div>
+
+        ${
+          filteredRows.length
+            ? `
+              <div class="dual-axis-shell">
+                <div class="axis-header-row">
+                  <span class="axis-label">Grade %</span>
+                  <span class="axis-label right">Study Time</span>
+                </div>
+                <div class="grade-study-graph">
+                  <div class="axis-scale">
+                    <span>100</span>
+                    <span>75</span>
+                    <span>50</span>
+                    <span>25</span>
+                    <span>0</span>
+                  </div>
+                  <div class="grade-study-grid" style="grid-template-columns: repeat(${filteredRows.length}, minmax(0, 1fr));">
+                    ${
+                      trendPoints
+                        ? `<svg class="trend-line" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="${trendPoints}"></polyline></svg>`
+                        : ""
+                    }
+                    ${filteredRows
+                      .map(function (row) {
+                        const label = `${row.subject}: ${row.examName}`;
+                        const compactLabel = row.examName || row.subject;
+                        const color = getSubjectColor(row.subject, subjects);
+                        const barHeight = Math.max((row.studyMinutes / maxStudyMinutes) * 100, row.studyMinutes ? 6 : 4);
+                        return `
+                          <div class="grade-study-column">
+                            <div class="grade-study-plot">
+                              <div class="study-bar" style="height:${barHeight}%; background:${color};"></div>
+                              <div class="grade-point" style="bottom:calc(${row.gradePercent}% - 9px); border-color:${color};"></div>
+                            </div>
+                            <div class="grade-study-readout">
+                              <strong>${row.gradePercent}%</strong>
+                              <span>${formatMinutes(row.studyMinutes)}</span>
+                            </div>
+                            <div class="grade-study-label" title="${escapeHtml(label)}">
+                              <span class="grade-study-label-title">${escapeHtml(compactLabel)}</span>
+                              <span class="grade-study-label-date">${escapeHtml(formatDate(row.examDate))}</span>
+                            </div>
+                          </div>
+                        `;
+                      })
+                      .join("")}
+                  </div>
+                  <div class="axis-scale right">
+                    <span>${formatMinutes(maxStudyMinutes)}</span>
+                    <span>${formatMinutes(Math.round(maxStudyMinutes * 0.75))}</span>
+                    <span>${formatMinutes(Math.round(maxStudyMinutes * 0.5))}</span>
+                    <span>${formatMinutes(Math.round(maxStudyMinutes * 0.25))}</span>
+                    <span>0 min</span>
+                  </div>
+                </div>
+                ${
+                  selectedClass !== "all"
+                    ? `<p class="panel-copy">Trend line is shown for ${escapeHtml(selectedClass)} while this class filter is active.</p>`
+                    : ""
+                }
+              </div>
+            `
+            : `
+              <div class="empty-state">
+                <h3>No grade data in this filter</h3>
+                <p>Try lowering the threshold, widening the week range, or selecting a different class.</p>
+              </div>
+            `
+        }
+      </section>
+    `;
+  }
+
+  function renderAnalyticsPage(sessions, selectedSubject, weekRange, selectedWeekKey, chartMode, selectedDayKey) {
+    return `
+      <section class="page-intro compact">
+        <div>
+          <p class="eyebrow">Charts And Insights</p>
+          <h1>See how your study time changes week to week.</h1>
+        </div>
+        <p class="hero-text">
+          Drill into specific weeks, compare classes side by side, and spot where your time is actually going.
+        </p>
+      </section>
+
+      <div class="chart-controls analytics-tabs" role="tablist" aria-label="Analytics subtab">
+        <button
+          class="${state.analyticsTab === "time" ? "filter-chip active" : "filter-chip"}"
+          type="button"
+          data-action="analytics-tab"
+          data-tab="time"
+        >
+          Time Charts
+        </button>
+        <button
+          class="${state.analyticsTab === "grade-study" ? "filter-chip active" : "filter-chip"}"
+          type="button"
+          data-action="analytics-tab"
+          data-tab="grade-study"
+        >
+          Grade vs Study Time
+        </button>
+      </div>
+
+      ${
+        state.analyticsTab === "grade-study"
+          ? renderGradeStudyChart()
+          : `
+              ${renderSummaryCards(sessions)}
+              ${renderWeeklyChart(sessions, selectedSubject, weekRange, selectedWeekKey, chartMode, selectedDayKey)}
+            `
+      }
+    `;
+  }
+
+  function renderStatsPage(sessions) {
+    const totalMinutes = sessions.reduce(function (sum, session) {
+      return sum + session.durationMinutes;
+    }, 0);
+    const totalSessions = sessions.length;
+    const totalSubjects = new Set(
+      sessions.map(function (session) {
+        return session.subject;
+      })
+    ).size;
+    const averageSession = totalSessions ? Math.round(totalMinutes / totalSessions) : 0;
+
+    const subjectTotals = Array.from(
+      sessions.reduce(function (map, session) {
+        const current = map.get(session.subject) || 0;
+        map.set(session.subject, current + session.durationMinutes);
+        return map;
+      }, new Map()).entries()
+    ).sort(function (a, b) {
+      return b[1] - a[1];
+    });
+
+    const bestSubject = subjectTotals[0] || null;
+
+    const dayTotals = Array.from({ length: 7 }, function (_value, index) {
+      return { day: index, minutes: 0 };
+    });
+
+    sessions.forEach(function (session) {
+      const date = new Date(session.date);
+      const day = date.getDay();
+      dayTotals[day].minutes += session.durationMinutes;
+    });
+
+    const strongestDay = dayTotals.reduce(function (best, current) {
+      if (!best || current.minutes > best.minutes) {
+        return current;
+      }
+      return best;
+    }, null);
+
+    const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const maxSubjectMinutes = Math.max(
+      60,
+      ...subjectTotals.map(function (entry) {
+        return entry[1];
+      }),
+      0
+    );
+    const gradeRows = getGradeComparisonRows(sessions, state.grades, state.classGradebooks).sort(function (a, b) {
+      return new Date(b.examDate) - new Date(a.examDate);
+    });
+
+    return `
+      <section class="page-intro compact">
+        <div>
+          <p class="eyebrow">Statistics Center</p>
+          <h1>See how your time is really being spent.</h1>
+        </div>
+        <p class="hero-text">
+          Review subject percentages, time totals, average session length, and the study habits that stand out most.
+        </p>
+      </section>
+
+      <section class="summary-grid">
+        <article class="summary-card">
+          <p class="eyebrow">Total Study Time</p>
+          <h2>${formatMinutes(totalMinutes)}</h2>
+          <p>All logged study time in this browser.</p>
+        </article>
+        <article class="summary-card">
+          <p class="eyebrow">Average Session</p>
+          <h2>${formatMinutes(averageSession)}</h2>
+          <p>Typical session length across your log.</p>
+        </article>
+        <article class="summary-card">
+          <p class="eyebrow">Subjects Tracked</p>
+          <h2>${totalSubjects}</h2>
+          <p>Distinct classes currently represented.</p>
+        </article>
+      </section>
+
+      <section class="stats-grid">
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Subject Breakdown</p>
+              <h2>Study Time Per Subject</h2>
+            </div>
+            <p class="panel-copy">See the total and percentage share for each class.</p>
+          </div>
+
+          ${
+            subjectTotals.length
+              ? `
+                <div class="stats-list">
+                  ${subjectTotals
+                    .map(function (entry, index) {
+                      const subject = entry[0];
+                      const minutes = entry[1];
+                      const percentage = totalMinutes ? Math.round((minutes / totalMinutes) * 100) : 0;
+                      const width = Math.max((minutes / maxSubjectMinutes) * 100, 8);
+                      const color = getSubjectColor(
+                        subject,
+                        subjectTotals.map(function (item) {
+                          return item[0];
+                        })
+                      );
+
+                      return `
+                        <div class="stat-row">
+                          <div class="stat-row-top">
+                            <div class="stat-subject">
+                              <span class="legend-swatch" style="background:${color}"></span>
+                              <strong>${escapeHtml(subject)}</strong>
+                            </div>
+                            <div class="stat-values">
+                              <span>${formatMinutes(minutes)}</span>
+                              <span>${percentage}%</span>
+                            </div>
+                          </div>
+                          <div class="stat-bar-track">
+                            <div class="stat-bar-fill" style="width:${width}%; background:${color};"></div>
+                          </div>
+                        </div>
+                      `;
+                    })
+                    .join("")}
+                </div>
+              `
+              : `
+                <div class="empty-state">
+                  <h3>No stats yet</h3>
+                  <p>Log a few study sessions and your subject percentages will appear here.</p>
+                </div>
+              `
+          }
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Critical Stats</p>
+              <h2>What Matters Most</h2>
+            </div>
+            <p class="panel-copy">High-level signals that help you see your study patterns quickly.</p>
+          </div>
+
+          <div class="critical-stats">
+            <div class="feature-item">
+              <strong>Top Subject</strong>
+              <p>${bestSubject ? `${escapeHtml(bestSubject[0])} with ${formatMinutes(bestSubject[1])}` : "No study data yet"}</p>
+            </div>
+            <div class="feature-item">
+              <strong>Most Active Day</strong>
+              <p>${
+                strongestDay && strongestDay.minutes
+                  ? `${weekdayLabels[strongestDay.day]} with ${formatMinutes(strongestDay.minutes)}`
+                  : "Not enough data yet"
+              }</p>
+            </div>
+            <div class="feature-item">
+              <strong>Total Sessions</strong>
+              <p>${totalSessions} session${totalSessions === 1 ? "" : "s"} recorded so far.</p>
+            </div>
+            <div class="feature-item">
+              <strong>Focus Balance</strong>
+              <p>${
+                subjectTotals.length > 1
+                  ? `${Math.round((subjectTotals[0][1] / totalMinutes) * 100)}% of your time is going to ${escapeHtml(subjectTotals[0][0])}.`
+                  : "Add more than one subject to compare balance across classes."
+              }</p>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="panel grade-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Grades Vs Study Time</p>
+            <h2>Compare Exam Results To Preparation</h2>
+          </div>
+          <p class="panel-copy">Log your past grades and compare each result to the amount of study time you logged in the 14 days leading up to that exam.</p>
+        </div>
+
+        <div class="grade-layout">
+          <form id="grade-form" class="grade-form">
+            <div class="form-grid">
+              <label>
+                <span>Class</span>
+                <input type="text" name="subject" maxlength="60" placeholder="Biology" required />
+              </label>
+              <label>
+                <span>Exam Name</span>
+                <input type="text" name="examName" maxlength="80" placeholder="Midterm 1" required />
+              </label>
+              <label>
+                <span>Exam Date</span>
+                <input type="date" name="examDate" required />
+              </label>
+              <label>
+                <span>Grade (%)</span>
+                <input type="number" name="gradePercent" min="0" max="100" step="0.1" placeholder="92" required />
+              </label>
+            </div>
+            <label>
+              <span>Notes</span>
+              <textarea name="notes" rows="3" maxlength="220" placeholder="Optional notes about the exam or how prepared you felt"></textarea>
+            </label>
+            <div class="form-actions">
+              <button class="primary-button" type="submit">Save Grade Entry</button>
+            </div>
+          </form>
+
+          <div class="grade-list">
+            ${
+              gradeRows.length
+                ? gradeRows
+                    .map(function (entry) {
+                      return `
+                        <article class="grade-item">
+                          <div class="grade-top">
+                            <div>
+                              <p class="eyebrow">${escapeHtml(entry.subject)}</p>
+                              <h3>${escapeHtml(entry.examName)}</h3>
+                            </div>
+                            <div class="grade-badge">${entry.gradePercent}%</div>
+                          </div>
+                          <p class="grade-meta">
+                            <span>${formatDate(entry.examDate)}</span>
+                            <span>${formatMinutes(entry.studyMinutes)} studied before exam</span>
+                            <span>${entry.source === "class-gradebook" ? "From Classes page" : "Manual entry"}</span>
+                          </p>
+                          ${
+                            entry.notes
+                              ? `<p class="session-notes">${escapeHtml(entry.notes)}</p>`
+                              : ""
+                          }
+                          ${
+                            entry.source === "manual"
+                              ? `
+                                <div class="session-actions">
+                                  <button class="ghost-button" type="button" data-action="delete-grade" data-id="${escapeHtml(entry.id)}">
+                                    Delete
+                                  </button>
+                                </div>
+                              `
+                              : ""
+                          }
+                        </article>
+                      `;
+                    })
+                    .join("")
+                : `
+                  <div class="empty-state">
+                    <h3>No grade comparisons yet</h3>
+                    <p>Add a past exam result to start comparing your grades with logged study time.</p>
+                  </div>
+                `
+            }
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderCalendarPage() {
+    return `
+      <section class="page-intro compact">
+        <div>
+          <p class="eyebrow">Calendar Hub</p>
+          <h1>Plan, sync, and compare your study schedule.</h1>
+        </div>
+        <p class="hero-text">
+          This page is the future home for your Google Calendar connection, where planned study blocks and real study sessions can work together.
+        </p>
+      </section>
+
+      <section class="home-grid">
+        <article class="panel feature-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Planned Integration</p>
+              <h2>Google Calendar Two-Way Sync</h2>
+            </div>
+            <p class="panel-copy">This is reserved for the future full web app version with secure Google sign-in and sync.</p>
+          </div>
+
+          <div class="feature-list">
+            <div class="feature-item">
+              <strong>Read your calendar</strong>
+              <p>See upcoming classes, deadlines, exams, and study blocks inside Productivity Hub.</p>
+            </div>
+            <div class="feature-item">
+              <strong>Create and update events</strong>
+              <p>Turn study plans into real Google Calendar events and update them when your schedule changes.</p>
+            </div>
+            <div class="feature-item">
+              <strong>Compare planned vs actual</strong>
+              <p>Match your scheduled study blocks against the sessions you actually log in the app.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Connection Status</p>
+              <h2>Calendar Not Connected</h2>
+            </div>
+            <p class="panel-copy">Two-way sync will require a secure backend and Google OAuth before this can be activated.</p>
+          </div>
+
+          <div class="empty-state">
+            <h3>Future sync workspace</h3>
+            <p>This page is now built into the site so the calendar system has a dedicated place when we implement the real integration.</p>
+          </div>
+
+          <div class="form-actions">
+            <button class="primary-button" type="button" disabled>Connect Google Calendar</button>
+            <button class="secondary-button" type="button" disabled>Sync Study Blocks</button>
+          </div>
+        </article>
+      </section>
+    `;
+  }
+
+  function renderClassesOverview(subjects, selectedClass, classGradebooks) {
+    const classCards = subjects.map(function (subject) {
+      const metrics = calculateClassMetrics(classGradebooks[subject] || []);
+      return {
+        subject: subject,
+        gpa: metrics.gpa,
+        weightedAverage: metrics.weightedAverage,
+        totalWeight: metrics.totalWeight,
+      };
+    });
+
+    const classesWithGrades = classCards.filter(function (entry) {
+      return entry.totalWeight > 0;
+    });
+
+    const semesterGpa =
+      classesWithGrades.length > 0
+        ? classesWithGrades.reduce(function (sum, entry) {
+            return sum + entry.gpa;
+          }, 0) / classesWithGrades.length
+        : 0;
+
+    return `
+      <section class="page-intro compact">
+        <div>
+          <p class="eyebrow">Classes</p>
+          <h1>Track every class and its grade picture.</h1>
+        </div>
+        <p class="hero-text">
+          Open any class to manage weighted assignments and keep a running class GPA that updates as your grades change.
+        </p>
+      </section>
+
+      <section class="summary-grid">
+        <article class="summary-card">
+          <p class="eyebrow">Semester GPA</p>
+          <h2>${formatGpa(semesterGpa)}</h2>
+          <p>Cumulative GPA across classes with saved weighted grades.</p>
+        </article>
+        <article class="summary-card">
+          <p class="eyebrow">Classes</p>
+          <h2>${subjects.length}</h2>
+          <p>Total classes currently known in your Productivity Hub.</p>
+        </article>
+        <article class="summary-card">
+          <p class="eyebrow">Graded Classes</p>
+          <h2>${classesWithGrades.length}</h2>
+          <p>Classes already using the GPA calculator.</p>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Class List</p>
+            <h2>Your Classes</h2>
+          </div>
+          <p class="panel-copy">Click a class to open its gradebook and weighted GPA calculator.</p>
+        </div>
+
+        ${
+          subjects.length
+            ? `
+              <div class="class-grid">
+                ${classCards
+                  .map(function (entry) {
+                    return `
+                      <button
+                        class="class-card${selectedClass === entry.subject ? " active" : ""}"
+                        type="button"
+                        data-action="open-class"
+                        data-subject="${escapeHtml(entry.subject)}"
+                      >
+                        <div class="class-card-top">
+                          <p class="eyebrow">${escapeHtml(entry.subject)}</p>
+                          <span class="class-card-gpa">${entry.totalWeight > 0 ? formatGpa(entry.gpa) : "--"}</span>
+                        </div>
+                        <h3>${escapeHtml(entry.subject)}</h3>
+                        <p>${
+                          entry.totalWeight > 0
+                            ? `${Math.round(entry.weightedAverage)}% weighted average across ${Math.round(entry.totalWeight)}% entered weight.`
+                            : "No weighted assignments entered yet."
+                        }</p>
+                      </button>
+                    `;
+                  })
+                  .join("")}
+              </div>
+            `
+            : `
+              <div class="empty-state">
+                <h3>No classes yet</h3>
+                <p>Classes appear here automatically from the subjects you log in sessions or grade comparisons.</p>
+              </div>
+            `
+        }
+      </section>
+    `;
+  }
+
+  function renderClassDetail(subject, entries) {
+    const metrics = calculateClassMetrics(entries);
+    const editingEntry =
+      state.editingClassGrade &&
+      state.editingClassGrade.subject === subject
+        ? state.editingClassGrade
+        : null;
+
+    return `
+      <section class="page-intro compact">
+        <div>
+          <p class="eyebrow">Class Detail</p>
+          <h1>${escapeHtml(subject)}</h1>
+        </div>
+        <p class="hero-text">
+          Enter assignment grades and the weight each one carries toward your final grade. Your class GPA stays here until you update it again.
+        </p>
+      </section>
+
+      <section class="summary-grid">
+        <article class="summary-card">
+          <p class="eyebrow">Class GPA</p>
+          <h2>${formatGpa(metrics.gpa)}</h2>
+          <p>Calculated from your current weighted average.</p>
+        </article>
+        <article class="summary-card">
+          <p class="eyebrow">Weighted Average</p>
+          <h2>${metrics.totalWeight > 0 ? `${Math.round(metrics.weightedAverage)}%` : "--"}</h2>
+          <p>Based only on assignments you have entered.</p>
+        </article>
+        <article class="summary-card">
+          <p class="eyebrow">Weight Entered</p>
+          <h2>${Math.round(metrics.totalWeight)}%</h2>
+          <p>Total course weight currently represented in this class.</p>
+        </article>
+      </section>
+
+      <section class="workspace-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Add Assignment</p>
+              <h2>Weighted Grade Entry</h2>
+            </div>
+            <p class="panel-copy">Assignments, projects, and exams all work here as long as you know the weight.</p>
+          </div>
+
+          <form id="class-grade-form">
+            <input type="hidden" name="subject" value="${escapeHtml(subject)}" />
+            <input type="hidden" name="editingId" value="${editingEntry ? escapeHtml(editingEntry.id) : ""}" />
+            <div class="form-grid">
+              <label>
+                <span>Assignment Name</span>
+                <input
+                  type="text"
+                  name="name"
+                  maxlength="80"
+                  placeholder="Exam 1"
+                  value="${editingEntry ? escapeHtml(editingEntry.name) : ""}"
+                  required
+                />
+              </label>
+              <label>
+                <span>Item Type</span>
+                <select name="itemType">
+                  <option value="assignment" ${editingEntry && editingEntry.itemType === "assignment" ? "selected" : ""}>Assignment</option>
+                  <option value="quiz" ${editingEntry && editingEntry.itemType === "quiz" ? "selected" : ""}>Quiz</option>
+                  <option value="exam" ${editingEntry && editingEntry.itemType === "exam" ? "selected" : ""}>Exam</option>
+                  <option value="project" ${editingEntry && editingEntry.itemType === "project" ? "selected" : ""}>Project</option>
+                </select>
+              </label>
+              <label>
+                <span>Date</span>
+                <input
+                  type="date"
+                  name="date"
+                  value="${editingEntry ? escapeHtml(String(editingEntry.date || "")) : ""}"
+                  required
+                />
+              </label>
+              <label>
+                <span>Grade (%)</span>
+                <input
+                  type="number"
+                  name="gradePercent"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  placeholder="92"
+                  value="${editingEntry ? editingEntry.gradePercent : ""}"
+                  required
+                />
+              </label>
+              <label>
+                <span>Weight In Final Grade (%)</span>
+                <input
+                  type="number"
+                  name="weightPercent"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  placeholder="25"
+                  value="${editingEntry ? editingEntry.weightPercent : ""}"
+                  required
+                />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button class="primary-button" type="submit">
+                ${editingEntry ? "Save Changes" : "Save Assignment"}
+              </button>
+              ${
+                editingEntry
+                  ? '<button class="secondary-button" type="button" data-action="cancel-class-grade-edit">Cancel Edit</button>'
+                  : ""
+              }
+              <button class="secondary-button" type="button" data-action="back-to-classes">Back To Classes</button>
+              <button class="ghost-button" type="button" data-action="delete-class" data-subject="${escapeHtml(subject)}">
+                Delete Class
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Grade Table</p>
+              <h2>${escapeHtml(subject)} Gradebook</h2>
+            </div>
+            <p class="panel-copy">Each saved item contributes to the weighted average and class GPA.</p>
+          </div>
+
+          ${
+            entries.length
+              ? `
+                <div class="grade-table">
+                  <div class="grade-table-head">
+                    <span>Assignment</span>
+                    <span>Type</span>
+                    <span>Date</span>
+                    <span>Grade</span>
+                    <span>Weight</span>
+                    <span>Action</span>
+                  </div>
+                  ${entries
+                    .map(function (entry) {
+                      return `
+                        <div class="grade-table-row">
+                          <span>${escapeHtml(entry.name)}</span>
+                          <span>${escapeHtml(entry.itemType || "assignment")}</span>
+                          <span>${formatDate(entry.date || new Date().toISOString().slice(0, 10))}</span>
+                          <span>${entry.gradePercent}%</span>
+                          <span>${entry.weightPercent}%</span>
+                          <div class="session-actions">
+                            <button
+                              class="secondary-button"
+                              type="button"
+                              data-action="edit-class-grade"
+                              data-subject="${escapeHtml(subject)}"
+                              data-id="${escapeHtml(entry.id)}"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              class="ghost-button"
+                              type="button"
+                              data-action="delete-class-grade"
+                              data-subject="${escapeHtml(subject)}"
+                              data-id="${escapeHtml(entry.id)}"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      `;
+                    })
+                    .join("")}
+                </div>
+              `
+              : `
+                <div class="empty-state">
+                  <h3>No assignments yet</h3>
+                  <p>Add your first weighted assignment to start calculating this class GPA.</p>
+                </div>
+              `
+          }
+        </section>
+      </section>
+    `;
+  }
+
+  function renderClassesPage(sessions, grades, classGradebooks, selectedClass) {
+    const subjects = getUniqueSubjects(sessions, grades, classGradebooks);
+
+    if (selectedClass) {
+      return renderClassDetail(selectedClass, classGradebooks[selectedClass] || []);
+    }
+
+    return renderClassesOverview(subjects, selectedClass, classGradebooks);
+  }
+
+  // Session form renderer. Add new study-session fields here if needed later.
+  function renderSessionForm(options) {
+    const draft = options.draft;
+    const errors = options.errors;
+    const isEditing = options.isEditing;
+    const title = isEditing ? "Edit Study Session" : "Log Study Session";
+    const helper = isEditing
+      ? "Update the session details and save your changes."
+      : "Capture what you studied, how long you focused, and any useful notes.";
+    const hasAssignmentType = Boolean(draft.assignmentType);
+    const assignmentLabel = draft.assignmentType
+      ? `${draft.assignmentType.charAt(0).toUpperCase()}${draft.assignmentType.slice(1)} Name`
+      : "Assignment / Exam";
+
+    return `
+      <section class="panel form-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Session Entry</p>
+            <h2>${title}</h2>
+          </div>
+          <p class="panel-copy">${helper}</p>
+        </div>
+
+        ${
+          isEditing
+            ? `
+              <div class="editing-banner">
+                <strong>Editing mode is on.</strong>
+                <span>Update the session, then save changes or cancel to return to quick entry.</span>
+              </div>
+            `
+            : ""
+        }
+
+        <form id="session-form" novalidate>
+          <div class="form-grid">
+          <label>
+            <span>Subject</span>
+            <input
+              type="text"
+              name="subject"
+                value="${escapeHtml(draft.subject)}"
+                placeholder="Biology, Algebra, History..."
+                maxlength="60"
+                required
+            />
+            ${errors.subject ? `<small class="field-error">${escapeHtml(errors.subject)}</small>` : ""}
+          </label>
+
+          <label>
+            <span>Assignment Type</span>
+            <select name="assignmentType">
+              <option value="" ${!draft.assignmentType ? "selected" : ""}>No assignment / exam</option>
+              <option value="assignment" ${draft.assignmentType === "assignment" ? "selected" : ""}>Assignment</option>
+              <option value="quiz" ${draft.assignmentType === "quiz" ? "selected" : ""}>Quiz</option>
+              <option value="exam" ${draft.assignmentType === "exam" ? "selected" : ""}>Exam</option>
+              <option value="project" ${draft.assignmentType === "project" ? "selected" : ""}>Project</option>
+            </select>
+          </label>
+
+          ${
+            hasAssignmentType
+              ? `
+                <label>
+                  <span>${escapeHtml(assignmentLabel)}</span>
+                  <input
+                    type="text"
+                    name="assignment"
+                    value="${escapeHtml(draft.assignment)}"
+                    placeholder="Quiz 2, Reading Notes, Midterm..."
+                    maxlength="80"
+                  />
+                </label>
+
+                <label>
+                  <span>Grade On That ${escapeHtml(draft.assignmentType.charAt(0).toUpperCase() + draft.assignmentType.slice(1))}</span>
+                  <input
+                    type="number"
+                    name="assignmentGradePercent"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value="${escapeHtml(String(draft.assignmentGradePercent))}"
+                    placeholder="Optional"
+                  />
+                </label>
+
+                <label>
+                  <span>Weight In Class Grade (%)</span>
+                  <input
+                    type="number"
+                    name="assignmentWeightPercent"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value="${escapeHtml(String(draft.assignmentWeightPercent))}"
+                    placeholder="Optional"
+                  />
+                </label>
+              `
+              : ""
+          }
+
+          <label>
+            <span>Date</span>
+              <input type="date" name="date" value="${escapeHtml(draft.date)}" required />
+              ${errors.date ? `<small class="field-error">${escapeHtml(errors.date)}</small>` : ""}
+            </label>
+
+            <label>
+              <span>Duration (minutes)</span>
+              <input
+                type="number"
+                name="durationMinutes"
+                min="1"
+                max="1440"
+                step="1"
+                value="${escapeHtml(String(draft.durationMinutes))}"
+                required
+              />
+              ${
+                errors.durationMinutes
+                  ? `<small class="field-error">${escapeHtml(errors.durationMinutes)}</small>`
+                  : ""
+              }
+            </label>
+
+            <label>
+              <span>Category</span>
+              <input
+                type="text"
+                name="category"
+                value="${escapeHtml(draft.category)}"
+                placeholder="Revision, Homework, Reading..."
+                maxlength="40"
+              />
+            </label>
+          </div>
+
+          <label>
+            <span>Notes</span>
+            <textarea
+              name="notes"
+              rows="4"
+              maxlength="280"
+              placeholder="What did you cover? What should you revisit next?"
+            >${escapeHtml(draft.notes)}</textarea>
+          </label>
+
+          <div class="form-actions">
+            <button class="primary-button" type="submit">
+              ${isEditing ? "Save Changes" : "Add Session"}
+            </button>
+            ${isEditing ? '<button class="secondary-button" type="button" data-action="cancel-edit">Cancel</button>' : ""}
+          </div>
+        </form>
+      </section>
+    `;
+  }
+
+  // Sorting helper for the Sessions page.
+  function getSortedSessions(sessions, sortMode) {
+    const sorted = sessions.slice();
+
+    if (sortMode === "subject-asc") {
+      sorted.sort(function (a, b) {
+        const bySubject = a.subject.localeCompare(b.subject);
+        if (bySubject !== 0) {
+          return bySubject;
+        }
+
+        return new Date(b.date) - new Date(a.date);
+      });
+      return sorted;
+    }
+
+    if (sortMode === "subject-desc") {
+      sorted.sort(function (a, b) {
+        const bySubject = b.subject.localeCompare(a.subject);
+        if (bySubject !== 0) {
+          return bySubject;
+        }
+
+        return new Date(b.date) - new Date(a.date);
+      });
+      return sorted;
+    }
+
+    sorted.sort(function (a, b) {
+      return new Date(b.date) - new Date(a.date);
+    });
+    return sorted;
+  }
+
+  // Session list renderer for the Sessions page.
+  function renderSessionList(sessions, editingId, sortMode) {
+    const sortedSessions = getSortedSessions(sessions, sortMode);
+
+    return `
+      <section class="panel list-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Recent Sessions</p>
+            <h2>Your Study Log</h2>
+          </div>
+          <div class="list-toolbar">
+            <p class="panel-copy">Edit or remove entries whenever your study history changes.</p>
+            <label class="sort-control">
+              <span>Sort</span>
+              <select data-action="sort-sessions" aria-label="Sort study sessions">
+                <option value="date-desc" ${sortMode === "date-desc" ? "selected" : ""}>Newest First</option>
+                <option value="subject-asc" ${sortMode === "subject-asc" ? "selected" : ""}>Class A-Z</option>
+                <option value="subject-desc" ${sortMode === "subject-desc" ? "selected" : ""}>Class Z-A</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        ${
+          sortedSessions.length
+            ? `
+              <div class="session-list">
+                ${sortedSessions
+                  .map(function (session) {
+                    return `
+                      <article class="session-item${editingId === session.id ? " is-editing" : ""}">
+                        <div class="session-main">
+                          <div class="session-title-row">
+                            <h3>${escapeHtml(session.subject)}</h3>
+                            <span class="pill">${formatMinutes(session.durationMinutes)}</span>
+                          </div>
+                          <p class="session-meta">
+                            <span>${formatDate(session.date)}</span>
+                            ${session.category ? `<span>${escapeHtml(session.category)}</span>` : ""}
+                            ${session.assignment ? `<span>${escapeHtml(session.assignment)}</span>` : ""}
+                            ${
+                              session.assignment && session.assignmentGradePercent !== ""
+                                ? `<span>${escapeHtml(String(session.assignmentGradePercent))}%</span>`
+                                : ""
+                            }
+                          </p>
+                          ${session.notes ? `<p class="session-notes">${escapeHtml(session.notes)}</p>` : ""}
+                        </div>
+                        <div class="session-actions">
+                          <button class="secondary-button" type="button" data-action="edit" data-id="${escapeHtml(session.id)}">
+                            Edit
+                          </button>
+                          <button class="ghost-button" type="button" data-action="delete" data-id="${escapeHtml(session.id)}">
+                            Delete
+                          </button>
+                        </div>
+                      </article>
+                    `;
+                  })
+                  .join("")}
+              </div>
+            `
+            : `
+              <div class="empty-state">
+                <h3>No sessions yet</h3>
+                <p>Start by logging your first study session. Your data will be saved locally in this browser.</p>
+              </div>
+            `
+        }
+      </section>
+    `;
+  }
+
+  // Full Sessions page renderer.
+  function renderSessionsPage(draft, errors, isEditing, sessions, editingId, sortMode) {
+    return `
+      <section class="page-intro compact">
+        <div>
+          <p class="eyebrow">Session Manager</p>
+          <h1>Edit your current and past study sessions.</h1>
+        </div>
+        <p class="hero-text">
+          Add new sessions, update older ones, and keep your study history clean from one dedicated workspace.
+        </p>
+      </section>
+
+      ${
+        state.flashMessage
+          ? `
+            <section class="flash-banner" aria-live="polite">
+              <strong>${escapeHtml(state.flashMessage)}</strong>
+            </section>
+          `
+          : ""
+      }
+
+      <section class="workspace-grid">
+        ${renderSessionForm({ draft: draft, errors: errors, isEditing: isEditing })}
+        ${renderSessionList(sessions, editingId, sortMode)}
+      </section>
+    `;
+  }
+
+  function blankDraft() {
+    return {
+      subject: "",
+      assignment: "",
+      assignmentType: "",
+      assignmentGradePercent: "",
+      assignmentWeightPercent: "",
+      linkedClassGradeId: "",
+      date: new Date().toISOString().slice(0, 10),
+      durationMinutes: 60,
+      notes: "",
+      category: "",
+    };
+  }
+
+  // APP STATE
+  // This object is the "single source of truth" for what the UI should show.
+  const state = {
+    sessions: loadSessions(),
+    draft: blankDraft(),
+    errors: {},
+    editingId: null,
+    currentPage: "home",
+    selectedClass: null,
+    analyticsTab: "time",
+    editingClassGrade: null,
+    sessionSort: "date-desc",
+    selectedSubject: "all",
+    chartWeeks: 6,
+    selectedWeekKey: null,
+    selectedDayKey: null,
+    chartMode: "range",
+    gradeChartClass: "all",
+    gradeChartThreshold: 0,
+    gradeChartWeeks: 12,
+    timer: {
+      elapsedSeconds: 0,
+      isRunning: false,
+    },
+    grades: loadGrades(),
+    classGradebooks: loadClassGradebooks(),
+    flashMessage: "",
+    flashTimeoutId: null,
+  };
+
+  function showFlashMessage(message) {
+    state.flashMessage = message;
+    render();
+
+    if (state.flashTimeoutId) {
+      window.clearTimeout(state.flashTimeoutId);
+    }
+
+    state.flashTimeoutId = window.setTimeout(function () {
+      state.flashMessage = "";
+      state.flashTimeoutId = null;
+      render();
+    }, 3200);
+  }
+
+  function validateDraft(draft) {
+    const errors = {};
+
+    if (!draft.subject.trim()) {
+      errors.subject = "Subject is required.";
+    }
+
+    if (!draft.date || Number.isNaN(Date.parse(draft.date))) {
+      errors.date = "Choose a valid study date.";
+    }
+
+    if (!Number.isFinite(Number(draft.durationMinutes)) || Number(draft.durationMinutes) <= 0) {
+      errors.durationMinutes = "Duration must be greater than zero.";
+    }
+
+    return errors;
+  }
+
+  function setDraftFromSession(session) {
+    state.draft = {
+      subject: session.subject,
+      assignment: session.assignment || "",
+      assignmentType: session.assignmentType || "",
+      assignmentGradePercent:
+        session.assignmentGradePercent === "" || session.assignmentGradePercent === undefined
+          ? ""
+          : session.assignmentGradePercent,
+      assignmentWeightPercent:
+        session.assignmentWeightPercent === "" || session.assignmentWeightPercent === undefined
+          ? ""
+          : session.assignmentWeightPercent,
+      linkedClassGradeId: session.linkedClassGradeId || "",
+      date: session.date.slice(0, 10),
+      durationMinutes: session.durationMinutes,
+      notes: session.notes || "",
+      category: session.category || "",
+    };
+  }
+
+  function readSessionDraftFromForm(form) {
+    const formData = new FormData(form);
+
+    return {
+      subject: String(formData.get("subject") || ""),
+      assignment: String(formData.get("assignment") || ""),
+      assignmentType: String(formData.get("assignmentType") || "").trim().toLowerCase(),
+      assignmentGradePercent: String(formData.get("assignmentGradePercent") || "").trim(),
+      assignmentWeightPercent: String(formData.get("assignmentWeightPercent") || "").trim(),
+      linkedClassGradeId: state.draft.linkedClassGradeId || "",
+      date: String(formData.get("date") || ""),
+      durationMinutes: String(formData.get("durationMinutes") || ""),
+      notes: String(formData.get("notes") || ""),
+      category: String(formData.get("category") || ""),
+    };
+  }
+
+  function resetForm() {
+    state.draft = blankDraft();
+    state.errors = {};
+    state.editingId = null;
+  }
+
+  function deleteClassBySubject(subject) {
+    state.sessions = state.sessions.filter(function (session) {
+      return session.subject !== subject;
+    });
+
+    state.grades = state.grades.filter(function (grade) {
+      return grade.subject !== subject;
+    });
+
+    state.classGradebooks = Object.keys(state.classGradebooks).reduce(function (next, key) {
+      if (key !== subject) {
+        next[key] = state.classGradebooks[key];
+      }
+      return next;
+    }, {});
+
+    if (state.editingClassGrade && state.editingClassGrade.subject === subject) {
+      state.editingClassGrade = null;
+    }
+
+    if (state.editingId) {
+      const editingSession = state.sessions.find(function (session) {
+        return session.id === state.editingId;
+      });
+      if (!editingSession) {
+        resetForm();
+      }
+    }
+
+    if (state.selectedSubject === subject) {
+      state.selectedSubject = "all";
+    }
+
+    if (state.gradeChartClass === subject) {
+      state.gradeChartClass = "all";
+    }
+
+    state.selectedClass = null;
+    state.currentPage = "classes";
+
+    persist();
+    saveGrades(state.grades);
+    saveClassGradebooks(state.classGradebooks);
+  }
+
+  function persist() {
+    saveSessions(state.sessions);
+  }
+
+  // MAIN RENDER FUNCTION
+  // Whenever state changes, this function rebuilds the current page.
+  // Main render function. Rebuilds the currently selected page from app state.
+  function render() {
+    const isEditing = Boolean(state.editingId);
+    let pageContent = "";
+
+    if (state.currentPage === "home") {
+      pageContent = renderHomePage(state.sessions, state.timer);
+    } else if (state.currentPage === "sessions") {
+      pageContent = renderSessionsPage(
+        state.draft,
+        state.errors,
+        isEditing,
+        state.sessions,
+        state.editingId,
+        state.sessionSort
+      );
+    } else if (state.currentPage === "classes") {
+      pageContent = renderClassesPage(
+        state.sessions,
+        state.grades,
+        state.classGradebooks,
+        state.selectedClass
+      );
+    } else if (state.currentPage === "analytics") {
+      pageContent = renderAnalyticsPage(
+        state.sessions,
+        state.selectedSubject,
+        state.chartWeeks,
+        state.selectedWeekKey,
+        state.chartMode,
+        state.selectedDayKey
+      );
+    } else if (state.currentPage === "stats") {
+      pageContent = renderStatsPage(state.sessions);
+    } else {
+      pageContent = renderCalendarPage();
+    }
+
+    appRoot.innerHTML = `
+      <main class="page-shell">
+        ${renderNavigation(state.currentPage)}
+        <section class="hero hero-shell">
+          ${pageContent}
+        </section>
+      </main>
+    `;
+  }
+
+  // EVENT HANDLERS
+  // handleSubmit() manages all forms in the app.
+  // Shared submit handler for every form in the app.
+  function handleSubmit(form, event) {
+    event.preventDefault();
+
+    if (form.id === "grade-form") {
+      const formData = new FormData(form);
+      const grade = {
+        id: generateId(),
+        subject: String(formData.get("subject") || "").trim(),
+        examName: String(formData.get("examName") || "").trim(),
+        examDate: String(formData.get("examDate") || ""),
+        gradePercent: Number(formData.get("gradePercent") || 0),
+        notes: String(formData.get("notes") || "").trim(),
+      };
+
+      if (!grade.subject || !grade.examName || !grade.examDate || !Number.isFinite(grade.gradePercent)) {
+        return;
+      }
+
+      state.grades = [grade].concat(state.grades).sort(function (a, b) {
+        return new Date(b.examDate) - new Date(a.examDate);
+      });
+      saveGrades(state.grades);
+      render();
+      return;
+    }
+
+    if (form.id === "class-grade-form") {
+      const formData = new FormData(form);
+      const subject = String(formData.get("subject") || "").trim();
+      const editingId = String(formData.get("editingId") || "").trim();
+      const entry = {
+        id: editingId || generateId(),
+        name: String(formData.get("name") || "").trim(),
+        itemType: String(formData.get("itemType") || "assignment").trim().toLowerCase(),
+        date: String(formData.get("date") || ""),
+        gradePercent: Number(formData.get("gradePercent") || 0),
+        weightPercent: Number(formData.get("weightPercent") || 0),
+      };
+
+      if (
+        !subject ||
+        !entry.name ||
+        !entry.date ||
+        !Number.isFinite(entry.gradePercent) ||
+        !Number.isFinite(entry.weightPercent)
+      ) {
+        return;
+      }
+
+      const existing = state.classGradebooks[subject] || [];
+      state.classGradebooks = {
+        ...state.classGradebooks,
+        [subject]: editingId
+          ? existing.map(function (item) {
+              return item.id === editingId ? entry : item;
+            })
+          : existing.concat(entry),
+      };
+      saveClassGradebooks(state.classGradebooks);
+      state.currentPage = "classes";
+      state.selectedClass = subject;
+      state.editingClassGrade = null;
+      showFlashMessage(
+        editingId
+          ? `Disciplined refinement matters. ${entry.name} was updated in ${subject}.`
+          : `Productive detail work matters. ${entry.name} was added to ${subject}.`
+      );
+      return;
+    }
+
+    const formData = new FormData(form);
+    const draft = {
+      subject: String(formData.get("subject") || ""),
+      assignment: String(formData.get("assignment") || ""),
+      assignmentType: String(formData.get("assignmentType") || "").trim().toLowerCase(),
+      assignmentGradePercent: String(formData.get("assignmentGradePercent") || "").trim(),
+      assignmentWeightPercent: String(formData.get("assignmentWeightPercent") || "").trim(),
+      linkedClassGradeId: state.draft.linkedClassGradeId || "",
+      date: String(formData.get("date") || ""),
+      durationMinutes: Number(formData.get("durationMinutes") || 0),
+      notes: String(formData.get("notes") || ""),
+      category: String(formData.get("category") || ""),
+    };
+
+    if (!draft.assignmentType) {
+      draft.assignment = "";
+      draft.assignmentGradePercent = "";
+      draft.assignmentWeightPercent = "";
+    }
+
+    const errors = validateDraft(draft);
+    state.draft = draft;
+    state.errors = errors;
+
+    if (Object.keys(errors).length > 0) {
+      render();
+      return;
+    }
+
+    const existingSession = state.editingId
+      ? state.sessions.find(function (session) {
+          return session.id === state.editingId;
+        }) || null
+      : null;
+
+    const syncResult = syncSessionAssignmentToClassGradebooks(existingSession, draft);
+    state.classGradebooks = syncResult.gradebooks;
+    saveClassGradebooks(state.classGradebooks);
+    draft.linkedClassGradeId = syncResult.linkedClassGradeId;
+
+    if (state.editingId) {
+      state.sessions = state.sessions.map(function (session) {
+        return session.id === state.editingId ? updateSession(session, draft) : session;
+      });
+      showFlashMessage(`Disciplined work includes refining the details. Your ${draft.subject} session was updated.`);
+    } else {
+      const createdSession = createSession(draft);
+      state.sessions = [createdSession].concat(state.sessions);
+      showFlashMessage(getEncouragementMessage(createdSession));
+    }
+
+    state.sessions.sort(function (a, b) {
+      return new Date(b.date) - new Date(a.date);
+    });
+    persist();
+    resetForm();
+    render();
+  }
+
+  // handleClick() manages all buttons/links that use data-action attributes.
+  // Shared click handler for all interactive buttons using data-action attributes.
+  function handleClick(event) {
+    const target = event.target.closest("[data-action]");
+    if (!target) {
+      return;
+    }
+
+    const action = target.dataset.action;
+    const id = target.dataset.id;
+    const subject = target.dataset.subject;
+
+    if (action === "navigate" && target.dataset.page) {
+      state.currentPage = target.dataset.page;
+      if (target.dataset.page !== "classes") {
+        state.selectedClass = null;
+      }
+      render();
+      return;
+    }
+
+    if (action === "analytics-tab" && target.dataset.tab) {
+      state.analyticsTab = target.dataset.tab;
+      state.currentPage = "analytics";
+      render();
+      return;
+    }
+
+    if (action === "toggle-timer") {
+      state.timer.isRunning = !state.timer.isRunning;
+      render();
+      return;
+    }
+
+    if (action === "reset-timer") {
+      state.timer.elapsedSeconds = 0;
+      state.timer.isRunning = false;
+      render();
+      return;
+    }
+
+    if (action === "delete-grade" && id) {
+      state.grades = state.grades.filter(function (grade) {
+        return grade.id !== id;
+      });
+      saveGrades(state.grades);
+      render();
+      return;
+    }
+
+    if (action === "open-class" && target.dataset.subject) {
+      state.currentPage = "classes";
+      state.selectedClass = target.dataset.subject;
+      render();
+      return;
+    }
+
+    if (action === "back-to-classes") {
+      state.currentPage = "classes";
+      state.selectedClass = null;
+      state.editingClassGrade = null;
+      render();
+      return;
+    }
+
+    if (action === "delete-class" && target.dataset.subject) {
+      const subjectName = target.dataset.subject;
+      const shouldDelete = window.confirm(
+        `Delete ${subjectName} and all of its sessions, grade comparisons, and class assignments? This cannot be undone.`
+      );
+
+      if (!shouldDelete) {
+        return;
+      }
+
+      deleteClassBySubject(subjectName);
+      render();
+      showFlashMessage(`${subjectName} was deleted from your classes.`);
+      return;
+    }
+
+    if (action === "cancel-class-grade-edit") {
+      state.editingClassGrade = null;
+      render();
+      return;
+    }
+
+    if (action === "edit-class-grade" && id && target.dataset.subject) {
+      const subjectName = target.dataset.subject;
+      const existing = state.classGradebooks[subjectName] || [];
+      const match = existing.find(function (entry) {
+        return entry.id === id;
+      });
+
+      if (!match) {
+        return;
+      }
+
+      state.currentPage = "classes";
+      state.selectedClass = subjectName;
+      state.editingClassGrade = {
+        subject: subjectName,
+        id: match.id,
+        name: match.name,
+        itemType: match.itemType || "assignment",
+        date: match.date || "",
+        gradePercent: match.gradePercent,
+        weightPercent: match.weightPercent,
+      };
+      render();
+      return;
+    }
+
+    if (action === "delete-class-grade" && id && target.dataset.subject) {
+      const subjectName = target.dataset.subject;
+      const existing = state.classGradebooks[subjectName] || [];
+      state.classGradebooks = {
+        ...state.classGradebooks,
+        [subjectName]: existing.filter(function (entry) {
+          return entry.id !== id;
+        }),
+      };
+      saveClassGradebooks(state.classGradebooks);
+      if (state.editingClassGrade && state.editingClassGrade.id === id) {
+        state.editingClassGrade = null;
+      }
+      render();
+      return;
+    }
+
+    if (action === "filter-subject" && subject) {
+      state.selectedSubject = subject;
+      state.currentPage = "analytics";
+      render();
+      return;
+    }
+
+    if (action === "cancel-edit") {
+      resetForm();
+      render();
+      return;
+    }
+
+    if (action === "filter-range" && target.dataset.range) {
+      state.chartMode = "range";
+      state.chartWeeks = Number(target.dataset.range) || 6;
+      state.selectedWeekKey = null;
+      state.selectedDayKey = null;
+      state.currentPage = "analytics";
+      render();
+      return;
+    }
+
+    if (action === "jump-current-week") {
+      const today = new Date();
+      const day = today.getDay();
+      if (day === 0) {
+        today.setDate(today.getDate() - 2);
+      } else if (day === 6) {
+        today.setDate(today.getDate() - 1);
+      }
+      state.chartMode = "week-breakdown";
+      state.selectedWeekKey = getWeekStart(today).toISOString().slice(0, 10);
+      state.selectedDayKey = today.toISOString().slice(0, 10);
+      state.currentPage = "analytics";
+      render();
+      return;
+    }
+
+    if (action === "select-week" && target.dataset.week) {
+      const weekStart = target.dataset.week;
+      const monday = new Date(weekStart + "T00:00:00");
+      state.chartMode = "week-breakdown";
+      state.selectedWeekKey = weekStart;
+      state.selectedDayKey = monday.toISOString().slice(0, 10);
+      state.currentPage = "analytics";
+      render();
+      return;
+    }
+
+    if (action === "select-day" && target.dataset.week) {
+      state.selectedDayKey = target.dataset.week;
+      state.currentPage = "analytics";
+      render();
+      return;
+    }
+
+    if (!id) {
+      return;
+    }
+
+    if (action === "edit") {
+      const session = state.sessions.find(function (entry) {
+        return entry.id === id;
+      });
+
+      if (!session) {
+        return;
+      }
+
+      state.editingId = id;
+      state.errors = {};
+      state.currentPage = "sessions";
+      setDraftFromSession(session);
+      render();
+      window.requestAnimationFrame(function () {
+        const formPanel = document.querySelector(".form-panel");
+        const subjectInput = document.querySelector('input[name="subject"]');
+        if (formPanel) {
+          formPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+          formPanel.classList.add("editing-pulse");
+          window.setTimeout(function () {
+            formPanel.classList.remove("editing-pulse");
+          }, 1200);
+        }
+        if (subjectInput) {
+          subjectInput.focus();
+        }
+      });
+      return;
+    }
+
+    if (action === "delete") {
+      state.sessions = state.sessions.filter(function (entry) {
+        return entry.id !== id;
+      });
+      persist();
+
+      if (state.editingId === id) {
+        resetForm();
+      }
+
+      render();
+    }
+  }
+
+  // STARTUP / EVENT WIRING
+  // These listeners connect the rendered HTML back to the JavaScript logic.
+  appRoot.addEventListener("submit", function (event) {
+    if (
+      event.target instanceof HTMLFormElement &&
+      (
+        event.target.id === "session-form" ||
+        event.target.id === "grade-form" ||
+        event.target.id === "class-grade-form"
+      )
+    ) {
+      handleSubmit(event.target, event);
+    }
+  });
+
+  appRoot.addEventListener("click", handleClick);
+
+  appRoot.addEventListener("change", function (event) {
+    const target = event.target;
+    if (
+      target instanceof HTMLSelectElement &&
+      target.name === "assignmentType" &&
+      target.form &&
+      target.form.id === "session-form"
+    ) {
+      state.draft = readSessionDraftFromForm(target.form);
+
+      if (!state.draft.assignmentType) {
+        state.draft.assignment = "";
+        state.draft.assignmentGradePercent = "";
+        state.draft.assignmentWeightPercent = "";
+      }
+
+      render();
+      return;
+    }
+
+    if (target instanceof HTMLSelectElement && target.dataset.action === "sort-sessions") {
+      state.sessionSort = target.value || "date-desc";
+      render();
+      return;
+    }
+
+    if (target instanceof HTMLSelectElement && target.dataset.action === "grade-chart-class") {
+      state.gradeChartClass = target.value || "all";
+      state.analyticsTab = "grade-study";
+      state.currentPage = "analytics";
+      render();
+      return;
+    }
+
+    if (target instanceof HTMLSelectElement && target.dataset.action === "grade-chart-threshold") {
+      state.gradeChartThreshold = Number(target.value || 0);
+      state.analyticsTab = "grade-study";
+      state.currentPage = "analytics";
+      render();
+      return;
+    }
+
+    if (target instanceof HTMLSelectElement && target.dataset.action === "grade-chart-weeks") {
+      state.gradeChartWeeks = Number(target.value || 12);
+      state.analyticsTab = "grade-study";
+      state.currentPage = "analytics";
+      render();
+    }
+  });
+
+  window.setInterval(function () {
+    if (!state.timer.isRunning) {
+      return;
+    }
+
+    state.timer.elapsedSeconds += 1;
+    const timerDisplay = document.querySelector("#timer-display");
+    if (timerDisplay) {
+      timerDisplay.textContent = formatClock(state.timer.elapsedSeconds);
+    }
+  }, 1000);
+
+  render();
+  document.title = "Productivity Hub";
+})();

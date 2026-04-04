@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Study Tracker</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Local-first study workflow</p>
+          <h1>Track the work that moves you forward.</h1>
+          <p class="hero-text">
+            Log study sessions, review subject totals, and keep momentum without
+            needing an account or backend.
+          </p>
+        </div>
+        <div class="hero-card">
+          <p class="hero-card-label">Today’s focus</p>
+          <p class="hero-card-title">Build consistency</p>
+          <p class="hero-card-text">
+            Small sessions compound. Capture them while they are still fresh.
+          </p>
+        </div>
+      </header>
+
+      <main class="app-grid">
+        <section class="panel panel-form" aria-labelledby="session-form-title">
+          <div class="panel-header">
+            <p class="panel-kicker">Session entry</p>
+            <h2 id="session-form-title">Add or update a study session</h2>
+          </div>
+          <form id="session-form" novalidate>
+            <input type="hidden" id="session-id" />
+
+            <div class="field-grid">
+              <label class="field">
+                <span>Subject</span>
+                <input
+                  id="subject"
+                  name="subject"
+                  type="text"
+                  maxlength="80"
+                  placeholder="Calculus"
+                  required
+                />
+              </label>
+
+              <label class="field">
+                <span>Date</span>
+                <input id="date" name="date" type="date" required />
+              </label>
+
+              <label class="field">
+                <span>Duration (minutes)</span>
+                <input
+                  id="duration"
+                  name="duration"
+                  type="number"
+                  min="1"
+                  max="1440"
+                  placeholder="90"
+                  required
+                />
+              </label>
+
+              <label class="field">
+                <span>Category or goal</span>
+                <input
+                  id="category"
+                  name="category"
+                  type="text"
+                  maxlength="80"
+                  placeholder="Exam prep"
+                />
+              </label>
+            </div>
+
+            <label class="field">
+              <span>Notes</span>
+              <textarea
+                id="notes"
+                name="notes"
+                rows="4"
+                maxlength="500"
+                placeholder="Worked through practice problems and reviewed mistakes."
+              ></textarea>
+            </label>
+
+            <p id="form-message" class="form-message" aria-live="polite"></p>
+
+            <div class="form-actions">
+              <button class="button button-primary" type="submit" id="submit-button">
+                Save session
+              </button>
+              <button class="button button-secondary" type="button" id="reset-button">
+                Clear form
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel panel-stats" aria-labelledby="summary-title">
+          <div class="panel-header">
+            <p class="panel-kicker">Snapshot</p>
+            <h2 id="summary-title">Your study summary</h2>
+          </div>
+          <div id="summary-cards" class="summary-cards"></div>
+          <div class="subject-breakdown">
+            <div class="subject-breakdown-header">
+              <h3>Per-subject totals</h3>
+              <p>Sorted by total time studied.</p>
+            </div>
+            <div id="subject-totals" class="subject-totals"></div>
+          </div>
+        </section>
+
+        <section class="panel panel-list" aria-labelledby="session-list-title">
+          <div class="panel-header list-header">
+            <div>
+              <p class="panel-kicker">History</p>
+              <h2 id="session-list-title">Saved study sessions</h2>
+            </div>
+            <p id="session-count" class="session-count"></p>
+          </div>
+          <div id="session-list" class="session-list" aria-live="polite"></div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+  </html>
