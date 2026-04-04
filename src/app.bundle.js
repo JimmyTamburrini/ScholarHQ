@@ -446,6 +446,243 @@
       }, 0);
   }
 
+  function buildAiCoachPayload(sessions, grades, classGradebooks) {
+    const recentSessions = sessions
+      .slice()
+      .sort(function (a, b) {
+        return new Date(b.date) - new Date(a.date);
+      })
+      .slice(0, 30)
+      .map(function (session) {
+        return {
+          subject: session.subject,
+          assignment: session.assignment,
+          assignmentType: session.assignmentType,
+          assignmentGradePercent: session.assignmentGradePercent,
+          assignmentWeightPercent: session.assignmentWeightPercent,
+          date: session.date,
+          durationMinutes: session.durationMinutes,
+          category: session.category,
+          notes: session.notes,
+        };
+      });
+
+    const subjectTotals = Array.from(
+      sessions.reduce(function (map, session) {
+        const current = map.get(session.subject) || 0;
+        map.set(session.subject, current + session.durationMinutes);
+        return map;
+      }, new Map()).entries()
+    )
+      .sort(function (a, b) {
+        return b[1] - a[1];
+      })
+      .map(function (entry) {
+        return {
+          subject: entry[0],
+          totalMinutes: entry[1],
+        };
+      });
+
+    const classSnapshots = Object.keys(classGradebooks)
+      .sort()
+      .map(function (subject) {
+        const entries = classGradebooks[subject] || [];
+        const metrics = calculateClassMetrics(entries);
+        return {
+          subject: subject,
+          gpa: Number(formatGpa(metrics.gpa)),
+          weightedAverage: Math.round(metrics.weightedAverage * 10) / 10,
+          totalWeight: Math.round(metrics.totalWeight * 10) / 10,
+          upcomingItems: entries
+            .slice()
+            .sort(function (a, b) {
+              return new Date(a.date) - new Date(b.date);
+            })
+            .slice(0, 8)
+            .map(function (entry) {
+              return {
+                name: entry.name,
+                itemType: entry.itemType,
+                date: entry.date,
+                gradePercent: entry.gradePercent,
+                weightPercent: entry.weightPercent,
+              };
+            }),
+        };
+      });
+
+    return {
+      generatedAt: new Date().toISOString(),
+      recentSessions: recentSessions,
+      manualGrades: grades.slice(0, 12).map(function (grade) {
+        return {
+          subject: grade.subject,
+          examName: grade.examName,
+          examDate: grade.examDate,
+          gradePercent: grade.gradePercent,
+          notes: grade.notes,
+        };
+      }),
+      subjectTotals: subjectTotals,
+      classSnapshots: classSnapshots,
+    };
+  }
+
+  function formatCoachTimestamp(value) {
+    if (!value) {
+      return "";
+    }
+
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(value));
+  }
+
+  function renderCoachList(items, emptyText) {
+    if (!items.length) {
+      return `<p class="coach-empty-copy">${escapeHtml(emptyText)}</p>`;
+    }
+
+    return `
+      <ul class="coach-list">
+        ${items
+          .map(function (item) {
+            return `<li>${escapeHtml(item)}</li>`;
+          })
+          .join("")}
+      </ul>
+    `;
+  }
+
+  function renderAiCoachPanel(sessions, grades, classGradebooks, aiCoach) {
+    const hasData = sessions.length > 0 || grades.length > 0 || Object.keys(classGradebooks).length > 0;
+
+    return `
+      <section class="panel ai-coach-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">AI Study Coach</p>
+            <h2>Personalized study guidance</h2>
+          </div>
+          <p class="panel-copy">Generate a quick coaching read on your recent study history, class progress, and where your next effort should go.</p>
+        </div>
+
+        <div class="coach-status-row">
+          <div class="coach-chip">
+            <span class="insight-label">Status</span>
+            <strong>${aiCoach.loading ? "Thinking" : aiCoach.result ? "Ready" : "Idle"}</strong>
+          </div>
+          <div class="coach-chip">
+            <span class="insight-label">Last Run</span>
+            <strong>${aiCoach.lastUpdated ? escapeHtml(formatCoachTimestamp(aiCoach.lastUpdated)) : "Not yet"}</strong>
+          </div>
+        </div>
+
+        ${
+          hasData
+            ? `<div class="form-actions">
+                <button class="primary-button" type="button" data-action="generate-ai-coach" ${aiCoach.loading ? "disabled" : ""}>
+                  ${aiCoach.loading ? "Generating Advice..." : "Generate AI Study Coach"}
+                </button>
+              </div>`
+            : `<div class="empty-state compact-empty-state">
+                <h3>Nothing to coach yet</h3>
+                <p>Log a few sessions or add class grades first so the AI coach has enough context to give useful advice.</p>
+              </div>`
+        }
+
+        ${
+          aiCoach.error
+            ? `<div class="coach-alert">${escapeHtml(aiCoach.error)}</div>`
+            : ""
+        }
+
+        ${
+          aiCoach.result
+            ? `
+              <div class="coach-output">
+                <div class="coach-summary-card">
+                  <p class="eyebrow">Headline</p>
+                  <h3>${escapeHtml(aiCoach.result.headline || "Your study snapshot is ready.")}</h3>
+                  <p>${escapeHtml(aiCoach.result.summary || "The AI coach generated a fresh review of your recent study data.")}</p>
+                </div>
+
+                <div class="coach-columns">
+                  <div class="coach-section">
+                    <p class="eyebrow">Top Priorities</p>
+                    ${renderCoachList(
+                      aiCoach.result.priorities || [],
+                      "No priorities were returned this time."
+                    )}
+                  </div>
+                  <div class="coach-section">
+                    <p class="eyebrow">Risks To Watch</p>
+                    ${renderCoachList(
+                      aiCoach.result.risks || [],
+                      "No major risks were called out."
+                    )}
+                  </div>
+                </div>
+
+                <div class="coach-section">
+                  <p class="eyebrow">Next Steps</p>
+                  ${renderCoachList(
+                    aiCoach.result.nextSteps || [],
+                    "No next steps were returned this time."
+                  )}
+                </div>
+              </div>
+            `
+            : ""
+        }
+      </section>
+    `;
+  }
+
+  async function requestAiCoach() {
+    if (state.aiCoach.loading) {
+      return;
+    }
+
+    state.aiCoach.loading = true;
+    state.aiCoach.error = "";
+    render();
+
+    try {
+      const response = await window.fetch("/.netlify/functions/study-coach", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(buildAiCoachPayload(state.sessions, state.grades, state.classGradebooks)),
+      });
+
+      const payload = await response.json().catch(function () {
+        return {};
+      });
+
+      if (!response.ok) {
+        throw new Error(payload.error || "The AI coach request failed.");
+      }
+
+      state.aiCoach.result = payload.coach || null;
+      state.aiCoach.lastUpdated = new Date().toISOString();
+      state.aiCoach.error = "";
+    } catch (error) {
+      const isFileProtocol = window.location.protocol === "file:";
+      state.aiCoach.error = isFileProtocol
+        ? "AI Study Coach needs a deployed site or local server with the Netlify function enabled. Open the project through Netlify or a local Netlify dev server to use it."
+        : (error && error.message) || "The AI coach could not generate advice right now.";
+    } finally {
+      state.aiCoach.loading = false;
+      render();
+    }
+  }
+
   function getGradeComparisonRows(sessions, grades, classGradebooks) {
     const manualGradeRows = grades.map(function (grade) {
       return {
@@ -603,6 +840,8 @@
           <p>Your most recently logged study focus.</p>
         </article>
       </section>
+
+      ${renderAiCoachPanel(sessions, state.grades, state.classGradebooks, state.aiCoach)}
     `;
   }
 
@@ -2214,6 +2453,12 @@
     },
     grades: loadGrades(),
     classGradebooks: loadClassGradebooks(),
+    aiCoach: {
+      loading: false,
+      error: "",
+      result: null,
+      lastUpdated: "",
+    },
     flashMessage: "",
     flashTimeoutId: null,
   };
@@ -2564,6 +2809,11 @@
       state.timer.elapsedSeconds = 0;
       state.timer.isRunning = false;
       render();
+      return;
+    }
+
+    if (action === "generate-ai-coach") {
+      requestAiCoach();
       return;
     }
 
