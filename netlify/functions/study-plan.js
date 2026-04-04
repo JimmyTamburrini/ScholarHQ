@@ -88,7 +88,17 @@ function parseBullets(text) {
   return String(text || "")
     .split("\n")
     .map(function (line) {
-      return line.replace(/^[-*]\s*/, "").trim();
+      return line.replace(/^[-*•]\s*/, "").trim();
+    })
+    .filter(Boolean)
+    .slice(0, 5);
+}
+
+function fallbackListFromText(text) {
+  return String(text || "")
+    .split(/\n+/)
+    .map(function (line) {
+      return line.replace(/^[-*•]\s*/, "").trim();
     })
     .filter(Boolean)
     .slice(0, 5);
@@ -125,6 +135,24 @@ function parsePlanText(rawText) {
     researchedTopics: researchedTopics,
     topicGuidance: topicGuidance,
     tips: tips,
+  };
+}
+
+function buildLooseFallbackPlan(rawText) {
+  const cleaned = String(rawText || "").trim();
+  const lines = fallbackListFromText(cleaned);
+  const headline = lines[0] || "Your study plan is ready.";
+  const summary = lines.slice(1, 3).join(" ") || cleaned || "The AI generated a study plan.";
+  const items = lines.slice(1);
+
+  return {
+    headline: headline,
+    summary: summary,
+    focusAreas: items.slice(0, 3),
+    studyBlocks: items.slice(0, 3),
+    researchedTopics: items.slice(0, 3),
+    topicGuidance: items.slice(0, 4),
+    tips: items.slice(0, 4),
   };
 }
 
@@ -230,11 +258,9 @@ exports.handler = async function (event) {
           "You are an academic study-planning assistant for a student dashboard named Productivity Hub. " +
           "Create a concise short-term study plan from the student's recent study behavior, grades, and class workload. " +
           "If the student has named assignments, quizzes, projects, chapters, or exams in researchedTopics, use web search to research only those topics and infer what they should actually study. " +
-          "Prefer returning valid JSON with this exact shape: " +
-          '{ "headline": string, "summary": string, "focusAreas": string[], "studyBlocks": string[], "researchedTopics": string[], "topicGuidance": string[], "tips": string[] }. ' +
-          "If JSON is not possible, return plain text in exactly this labeled format: " +
+          "Return plain text in exactly this labeled format: " +
           "HEADLINE:, SUMMARY:, FOCUS AREAS:, STUDY BLOCKS:, RESEARCHED TOPICS:, TOPIC GUIDANCE:, TIPS:. " +
-          "For the list sections, use bullet points starting with '- '. " +
+          "For the list sections, use bullet points starting with '- '. Do not return JSON. " +
           "Be practical, encouraging, and specific. " +
           "Recommend concrete study blocks with class names, task types, and realistic durations. " +
           "Keep the response short enough for a quick dashboard card. " +
@@ -282,18 +308,7 @@ exports.handler = async function (event) {
     }
 
     const rawText = extractResponseText(responsePayload);
-    const parsed = tryParseJson(rawText) || parsePlanText(rawText);
-    if (!parsed) {
-      return {
-        statusCode: 502,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          error: "The AI study plan response could not be parsed cleanly. Try again once, and if it keeps failing we can relax the planner format further.",
-        }),
-      };
-    }
+    const parsed = parsePlanText(rawText) || tryParseJson(rawText) || buildLooseFallbackPlan(rawText);
     const plan = normalizePlanResult(parsed, rawText);
     plan.sources = extractSources(responsePayload);
 
