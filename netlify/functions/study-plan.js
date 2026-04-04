@@ -61,6 +61,14 @@ function normalizePlanResult(parsed, rawText) {
   };
 }
 
+function tryParseJson(value) {
+  try {
+    return JSON.parse(stripCodeFences(value));
+  } catch (_error) {
+    return null;
+  }
+}
+
 function extractSources(payload) {
   if (!payload || !Array.isArray(payload.output)) {
     return [];
@@ -167,9 +175,14 @@ exports.handler = async function (event) {
         Authorization: "Bearer " + process.env.OPENAI_API_KEY,
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-5-mini",
+        model: process.env.OPENAI_MODEL || "gpt-5",
         tools: [{ type: "web_search" }],
         include: ["web_search_call.action.sources"],
+        text: {
+          format: {
+            type: "json_object",
+          },
+        },
         input:
           "You are an academic study-planning assistant for a student dashboard named Productivity Hub. " +
           "Create a realistic short-term study plan from the student's recent study behavior, grades, and class workload. " +
@@ -205,7 +218,18 @@ exports.handler = async function (event) {
     }
 
     const rawText = extractResponseText(responsePayload);
-    const parsed = JSON.parse(stripCodeFences(rawText));
+    const parsed = tryParseJson(rawText);
+    if (!parsed) {
+      return {
+        statusCode: 502,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          error: "The AI study plan response was not valid JSON. Try again, or set OPENAI_MODEL to gpt-5 in Netlify if it is currently overridden.",
+        }),
+      };
+    }
     const plan = normalizePlanResult(parsed, rawText);
     plan.sources = extractSources(responsePayload);
 
