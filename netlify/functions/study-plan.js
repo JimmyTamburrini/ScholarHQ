@@ -178,11 +178,6 @@ exports.handler = async function (event) {
         model: process.env.OPENAI_MODEL || "gpt-5",
         tools: [{ type: "web_search" }],
         include: ["web_search_call.action.sources"],
-        text: {
-          format: {
-            type: "json_object",
-          },
-        },
         input:
           "You are an academic study-planning assistant for a student dashboard named Productivity Hub. " +
           "Create a realistic short-term study plan from the student's recent study behavior, grades, and class workload. " +
