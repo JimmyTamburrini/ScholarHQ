@@ -830,12 +830,21 @@
         body: JSON.stringify(buildAiCoachPayload(state.sessions, state.grades, state.classGradebooks)),
       });
 
-      const payload = await response.json().catch(function () {
-        return {};
-      });
+      const responseText = await response.text();
+      let payload = {};
+
+      try {
+        payload = responseText ? JSON.parse(responseText) : {};
+      } catch (_error) {
+        payload = {};
+      }
 
       if (!response.ok) {
-        throw new Error(payload.error || "The AI study plan request failed.");
+        throw new Error(
+          payload.error ||
+            responseText ||
+            `The AI study plan request failed with status ${response.status}.`
+        );
       }
 
       state.aiPlan.result = payload.plan || null;
