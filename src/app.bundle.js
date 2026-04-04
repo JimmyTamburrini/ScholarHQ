@@ -635,7 +635,8 @@
       <div class="coach-list">
         ${items
           .map(function (item) {
-            return `<div class="coach-list-item"><strong>${escapeHtml(item)}</strong></div>`;
+            const cleanItem = String(item || "").replace(/^[-*•]\s*/, "").trim();
+            return `<div class="coach-list-item"><strong>${escapeHtml(cleanItem)}</strong></div>`;
           })
           .join("")}
       </div>

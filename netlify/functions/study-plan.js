@@ -42,21 +42,42 @@ function normalizeList(items) {
 
   return items
     .map(function (item) {
-      return String(item || "").trim();
+      return String(item || "").replace(/^[-*•]\s*/, "").trim();
     })
     .filter(Boolean)
     .slice(0, 5);
 }
 
 function normalizePlanResult(parsed, rawText) {
+  const focusAreas = normalizeList(parsed && parsed.focusAreas);
+  const studyBlocks = normalizeList(parsed && parsed.studyBlocks);
+  const researchedTopics = normalizeList(parsed && parsed.researchedTopics);
+  const topicGuidance = normalizeList(parsed && parsed.topicGuidance);
+  const tips = normalizeList(parsed && parsed.tips);
+  const fallbackPool = []
+    .concat(focusAreas)
+    .concat(studyBlocks)
+    .concat(researchedTopics)
+    .concat(topicGuidance)
+    .concat(tips)
+    .filter(Boolean);
+
+  function fillSection(items, startIndex, count) {
+    if (items.length) {
+      return items;
+    }
+
+    return fallbackPool.slice(startIndex, startIndex + count);
+  }
+
   return {
     headline: String((parsed && parsed.headline) || "Your study plan is ready.").trim(),
     summary: String((parsed && parsed.summary) || rawText || "The AI generated a study plan.").trim(),
-    focusAreas: normalizeList(parsed && parsed.focusAreas),
-    studyBlocks: normalizeList(parsed && parsed.studyBlocks),
-    researchedTopics: normalizeList(parsed && parsed.researchedTopics),
-    topicGuidance: normalizeList(parsed && parsed.topicGuidance),
-    tips: normalizeList(parsed && parsed.tips),
+    focusAreas: fillSection(focusAreas, 0, 3),
+    studyBlocks: fillSection(studyBlocks, 0, 3),
+    researchedTopics: fillSection(researchedTopics, 0, 3),
+    topicGuidance: fillSection(topicGuidance, 0, 4),
+    tips: fillSection(tips, 1, 4),
     sources: [],
   };
 }
