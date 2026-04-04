@@ -632,13 +632,13 @@
     }
 
     return `
-      <ul class="coach-list">
+      <div class="coach-list">
         ${items
           .map(function (item) {
-            return `<li>${escapeHtml(item)}</li>`;
+            return `<div class="coach-list-item"><strong>${escapeHtml(item)}</strong></div>`;
           })
           .join("")}
-      </ul>
+      </div>
     `;
   }
 

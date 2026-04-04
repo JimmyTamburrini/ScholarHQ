@@ -310,12 +310,22 @@ h1 {
 }
 
 .coach-list {
-  margin: 0;
-  padding-left: 18px;
   display: grid;
-  gap: 10px;
+  gap: 12px;
+}
+
+.coach-list-item {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 244, 232, 0.035);
+  border: 1px solid rgba(230, 216, 194, 0.08);
   color: var(--muted);
   line-height: 1.65;
+}
+
+.coach-list-item strong {
+  color: var(--text);
+  font-weight: 600;
 }
 
 .coach-empty-copy {
