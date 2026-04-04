@@ -136,17 +136,6 @@ function extractSources(payload) {
   const collected = [];
 
   payload.output.forEach(function (item) {
-    if (item && item.type === "web_search_call" && item.action && Array.isArray(item.action.sources)) {
-      item.action.sources.forEach(function (source) {
-        if (source && source.url) {
-          collected.push({
-            title: source.title || source.url,
-            url: source.url,
-          });
-        }
-      });
-    }
-
     if (item && item.type === "message" && Array.isArray(item.content)) {
       item.content.forEach(function (contentItem) {
         if (!contentItem || !Array.isArray(contentItem.annotations)) {
@@ -236,7 +225,7 @@ exports.handler = async function (event) {
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || "gpt-5",
         tools: [{ type: "web_search" }],
-        include: ["web_search_call.action.sources"],
+        tool_choice: "auto",
         input:
           "You are an academic study-planning assistant for a student dashboard named Productivity Hub. " +
           "Create a realistic short-term study plan from the student's recent study behavior, grades, and class workload. " +
@@ -255,15 +244,20 @@ exports.handler = async function (event) {
       }),
     });
 
-    const responsePayload = await openAiResponse.json();
+    const responseText = await openAiResponse.text();
+    let responsePayload = null;
+
+    try {
+      responsePayload = JSON.parse(responseText);
+    } catch (_error) {
+      responsePayload = null;
+    }
 
     if (!openAiResponse.ok) {
       const apiError =
-        responsePayload &&
-        responsePayload.error &&
-        responsePayload.error.message
+        responsePayload && responsePayload.error && responsePayload.error.message
           ? responsePayload.error.message
-          : "The OpenAI request failed.";
+          : responseText || "The OpenAI request failed.";
 
       return {
         statusCode: openAiResponse.status,
@@ -271,6 +265,18 @@ exports.handler = async function (event) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ error: apiError }),
+      };
+    }
+
+    if (!responsePayload) {
+      return {
+        statusCode: 502,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          error: "The OpenAI response was not valid JSON.",
+        }),
       };
     }
 
