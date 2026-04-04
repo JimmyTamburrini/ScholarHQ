@@ -70,7 +70,10 @@ If you prefer, you can also serve it with a small local server.
 
 ## AI Study Coach Setup
 
-This project now includes a first AI feature: an `AI Study Coach` panel on the Home page.
+This project now includes AI features on the Home page:
+
+- `AI Study Coach`
+- `AI Study Plan`
 
 To enable it:
 

@@ -643,6 +643,91 @@
     `;
   }
 
+  function renderStudyPlanPanel(sessions, grades, classGradebooks, aiPlan) {
+    const hasData = sessions.length > 0 || grades.length > 0 || Object.keys(classGradebooks).length > 0;
+
+    return `
+      <section class="panel ai-coach-panel study-plan-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">AI Study Plan</p>
+            <h2>Generate your next study roadmap</h2>
+          </div>
+          <p class="panel-copy">Build a realistic short study plan from your recent sessions, grades, and class workload so you know what to tackle next.</p>
+        </div>
+
+        <div class="coach-status-row">
+          <div class="coach-chip">
+            <span class="insight-label">Status</span>
+            <strong>${aiPlan.loading ? "Planning" : aiPlan.result ? "Ready" : "Idle"}</strong>
+          </div>
+          <div class="coach-chip">
+            <span class="insight-label">Last Run</span>
+            <strong>${aiPlan.lastUpdated ? escapeHtml(formatCoachTimestamp(aiPlan.lastUpdated)) : "Not yet"}</strong>
+          </div>
+        </div>
+
+        ${
+          hasData
+            ? `<div class="form-actions">
+                <button class="primary-button" type="button" data-action="generate-ai-plan" ${aiPlan.loading ? "disabled" : ""}>
+                  ${aiPlan.loading ? "Building Study Plan..." : "Generate AI Study Plan"}
+                </button>
+              </div>`
+            : `<div class="empty-state compact-empty-state">
+                <h3>Nothing to plan yet</h3>
+                <p>Log a few sessions or add class grades first so the AI can build a meaningful study plan.</p>
+              </div>`
+        }
+
+        ${
+          aiPlan.error
+            ? `<div class="coach-alert">${escapeHtml(aiPlan.error)}</div>`
+            : ""
+        }
+
+        ${
+          aiPlan.result
+            ? `
+              <div class="coach-output">
+                <div class="coach-summary-card">
+                  <p class="eyebrow">Plan Summary</p>
+                  <h3>${escapeHtml(aiPlan.result.headline || "Your study plan is ready.")}</h3>
+                  <p>${escapeHtml(aiPlan.result.summary || "The AI generated a practical study plan from your current data.")}</p>
+                </div>
+
+                <div class="coach-columns">
+                  <div class="coach-section">
+                    <p class="eyebrow">Focus This Week</p>
+                    ${renderCoachList(
+                      aiPlan.result.focusAreas || [],
+                      "No focus areas were returned this time."
+                    )}
+                  </div>
+                  <div class="coach-section">
+                    <p class="eyebrow">Suggested Blocks</p>
+                    ${renderCoachList(
+                      aiPlan.result.studyBlocks || [],
+                      "No study blocks were returned this time."
+                    )}
+                  </div>
+                </div>
+
+                <div class="coach-section">
+                  <p class="eyebrow">Execution Tips</p>
+                  ${renderCoachList(
+                    aiPlan.result.tips || [],
+                    "No execution tips were returned this time."
+                  )}
+                </div>
+              </div>
+            `
+            : ""
+        }
+      </section>
+    `;
+  }
+
   async function requestAiCoach() {
     if (state.aiCoach.loading) {
       return;
@@ -679,6 +764,46 @@
         : (error && error.message) || "The AI coach could not generate advice right now.";
     } finally {
       state.aiCoach.loading = false;
+      render();
+    }
+  }
+
+  async function requestAiPlan() {
+    if (state.aiPlan.loading) {
+      return;
+    }
+
+    state.aiPlan.loading = true;
+    state.aiPlan.error = "";
+    render();
+
+    try {
+      const response = await window.fetch("/.netlify/functions/study-plan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(buildAiCoachPayload(state.sessions, state.grades, state.classGradebooks)),
+      });
+
+      const payload = await response.json().catch(function () {
+        return {};
+      });
+
+      if (!response.ok) {
+        throw new Error(payload.error || "The AI study plan request failed.");
+      }
+
+      state.aiPlan.result = payload.plan || null;
+      state.aiPlan.lastUpdated = new Date().toISOString();
+      state.aiPlan.error = "";
+    } catch (error) {
+      const isFileProtocol = window.location.protocol === "file:";
+      state.aiPlan.error = isFileProtocol
+        ? "AI Study Plan needs a deployed site or local server with the Netlify function enabled. Open the project through Netlify or a local Netlify dev server to use it."
+        : (error && error.message) || "The AI study plan could not be generated right now.";
+    } finally {
+      state.aiPlan.loading = false;
       render();
     }
   }
@@ -842,6 +967,7 @@
       </section>
 
       ${renderAiCoachPanel(sessions, state.grades, state.classGradebooks, state.aiCoach)}
+      ${renderStudyPlanPanel(sessions, state.grades, state.classGradebooks, state.aiPlan)}
     `;
   }
 
@@ -2459,6 +2585,12 @@
       result: null,
       lastUpdated: "",
     },
+    aiPlan: {
+      loading: false,
+      error: "",
+      result: null,
+      lastUpdated: "",
+    },
     flashMessage: "",
     flashTimeoutId: null,
   };
@@ -2814,6 +2946,11 @@
 
     if (action === "generate-ai-coach") {
       requestAiCoach();
+      return;
+    }
+
+    if (action === "generate-ai-plan") {
+      requestAiPlan();
       return;
     }
 
