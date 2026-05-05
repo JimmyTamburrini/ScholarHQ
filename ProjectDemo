@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Productivity Hub Overview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --surface: rgba(37, 28, 23, 0.92);
+        --surface-soft: rgba(255, 244, 232, 0.05);
+        --text: #f4ede3;
+        --muted: #c7b7a2;
+        --line: rgba(233, 220, 198, 0.12);
+        --oak: #6c4c34;
+        --oak-light: #8b6647;
+        --forest: #3a4a32;
+        --navy: #2a3444;
+        --gold: #b08a4b;
+        --accent: #7b2d2f;
+        --shadow: 0 28px 72px rgba(0, 0, 0, 0.32);
+        --radius-xl: 32px;
+        --radius-lg: 24px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "DM Sans", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 12% 18%, rgba(0, 255, 170, 0.16), transparent 18%),
+          radial-gradient(circle at 88% 20%, rgba(0, 170, 255, 0.18), transparent 20%),
+          radial-gradient(circle at 76% 78%, rgba(255, 0, 128, 0.14), transparent 18%),
+          radial-gradient(circle at 20% 82%, rgba(255, 184, 0, 0.12), transparent 16%),
+          linear-gradient(160deg, #050816 0%, #0a1020 42%, #120b1f 100%);
+      }
+
+      .page {
+        width: min(1200px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 56px;
+      }
+
+      .hero,
+      .panel,
+      .feature-card,
+      .metric-card,
+      .page-card {
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent),
+          var(--surface);
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+
+      .hero {
+        border-radius: 40px;
+        padding: 42px;
+        display: grid;
+        gap: 24px;
+      }
+
+      .eyebrow {
+        margin: 0 0 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: var(--gold);
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      h1 {
+        font-size: clamp(2.8rem, 6vw, 5.6rem);
+        line-height: 0.94;
+        max-width: 11ch;
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 20px;
+        align-items: start;
+      }
+
+      .hero-copy p:last-child,
+      .panel p,
+      .feature-card p,
+      .metric-card p,
+      .page-card p,
+      li {
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .hero-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 11px 16px;
+        font-weight: 700;
+      }
+
+      .pill.primary {
+        background: linear-gradient(135deg, var(--forest), #4d6143);
+        color: #fff8f1;
+      }
+
+      .pill.hero-pill {
+        padding: 16px 24px;
+        font-size: 1rem;
+        letter-spacing: 0.02em;
+        box-shadow: 0 16px 30px rgba(0, 0, 0, 0.2);
+      }
+
+      .pill.secondary {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text);
+        border: 1px solid var(--line);
+      }
+
+      .showcase {
+        border-radius: var(--radius-xl);
+        padding: 22px;
+      }
+
+      .showcase-screen {
+        border-radius: 24px;
+        background: rgba(7, 8, 10, 0.34);
+        border: 1px solid var(--line);
+        padding: 18px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .showcase-pages,
+      .showcase-row,
+      .showcase-bars,
+      .showcase-metrics,
+      .showcase-body {
+        display: grid;
+        gap: 12px;
+      }
+
+      .showcase-pages {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .showcase-row {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .showcase-bars {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        align-items: end;
+        min-height: 180px;
+      }
+
+      .showcase-metrics {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .showcase-card,
+      .showcase-stat,
+      .showcase-page {
+        border-radius: 18px;
+        background: var(--surface-soft);
+        border: 1px solid var(--line);
+        padding: 12px;
+      }
+
+      .mini-label {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--gold);
+        margin-bottom: 6px;
+      }
+
+      .mini-title {
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 0.95rem;
+        color: #fff7eb;
+      }
+
+      .mini-copy {
+        font-size: 0.84rem;
+        color: var(--muted);
+        line-height: 1.45;
+        margin-top: 6px;
+      }
+
+      .mini-number {
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 1.5rem;
+        color: #fff1d8;
+      }
+
+      .mini-page-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100%;
+        width: 100%;
+        border-radius: 12px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--muted);
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+      }
+
+      .mini-page-pill.active {
+        background: linear-gradient(135deg, var(--navy), #3a4758);
+        color: #fff7eb;
+      }
+
+      .log-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .log-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+
+      .mini-grade-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        font-size: 0.82rem;
+        color: var(--muted);
+        margin-top: 8px;
+      }
+
+      .mini-grade-pill {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(123, 45, 47, 0.18);
+        color: #ffd8d4;
+        font-weight: 700;
+      }
+
+      .showcase-bar {
+        border-radius: 14px 14px 8px 8px;
+        background: linear-gradient(180deg, var(--oak-light), var(--oak));
+      }
+
+      .showcase-bar:nth-child(2n) {
+        background: linear-gradient(180deg, #485c40, var(--forest));
+      }
+
+      .showcase-bar:nth-child(3n) {
+        background: linear-gradient(180deg, #3c4657, var(--navy));
+      }
+
+      .is-hidden {
+        display: none;
+      }
+
+      .section {
+        margin-top: 22px;
+      }
+
+      .panel {
+        border-radius: var(--radius-xl);
+        padding: 28px;
+      }
+
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .feature-card,
+      .metric-card,
+      .page-card {
+        border-radius: var(--radius-lg);
+        padding: 22px;
+      }
+
+      .metric-number {
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 2.4rem;
+        color: #fff4df;
+      }
+
+      .page-card ul,
+      .panel ul {
+        margin: 14px 0 0;
+        padding-left: 18px;
+      }
+
+      .footnote {
+        margin-top: 24px;
+        padding: 18px 22px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--line);
+        color: var(--muted);
+      }
+
+      @media (max-width: 960px) {
+        .hero-grid,
+        .grid-3,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+
+        .showcase-row,
+        .showcase-pages,
+        .showcase-metrics {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 640px) {
+        .page {
+          width: min(100% - 20px, 100%);
+          padding: 18px 0 38px;
+        }
+
+        .hero,
+        .panel,
+        .feature-card,
+        .metric-card,
+        .page-card {
+          border-radius: 24px;
+        }
+
+        .hero {
+          padding: 24px;
+        }
+
+        .showcase-pages,
+        .showcase-metrics,
+        .showcase-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow">Project Overview</p>
+            <h1>Productivity Hub</h1>
+            <p>
+              Productivity Hub is a personal academic command center designed to help students track study habits,
+              class performance, and time investment in one place.
+            </p>
+            <p>
+              It combines session logging, class-grade tracking, visual analytics, exam-prep comparisons, and a
+              central home dashboard into one polished academic system.
+            </p>
+            <div class="hero-actions">
+              <span class="pill primary hero-pill">Built for students, designed for success</span>
+            </div>
+          </div>
+
+          <aside class="showcase">
+            <p class="eyebrow">Interactive Snapshot</p>
+            <div class="showcase-screen">
+              <div class="showcase-pages">
+                <div class="showcase-page"><button class="mini-page-pill active" data-demo-tab="home">Home</button></div>
+                <div class="showcase-page"><button class="mini-page-pill" data-demo-tab="sessions">Sessions</button></div>
+                <div class="showcase-page"><button class="mini-page-pill" data-demo-tab="classes">Classes</button></div>
+                <div class="showcase-page"><button class="mini-page-pill" data-demo-tab="charts">Charts</button></div>
+                <div class="showcase-page"><button class="mini-page-pill" data-demo-tab="stats">Stats</button></div>
+              </div>
+
+              <div class="showcase-body" data-demo-panel="home">
+                <div class="showcase-row">
+                  <div class="showcase-card">
+                    <div class="mini-label">Classes</div>
+                    <div class="mini-title">Biology 201</div>
+                    <div class="mini-copy">Weighted GPA: 3.70</div>
+                  </div>
+                  <div class="showcase-card">
+                    <div class="mini-label">Current Timer</div>
+                    <div class="mini-number">01:24:12</div>
+                    <div class="mini-copy">Current study block</div>
+                  </div>
+                  <div class="showcase-card">
+                    <div class="mini-label">Semester GPA</div>
+                    <div class="mini-number">3.58</div>
+                    <div class="mini-copy">Across 4 classes</div>
+                  </div>
+                </div>
+                <div class="showcase-metrics">
+                  <div class="showcase-stat">
+                    <div class="mini-label">Study Logs</div>
+                    <div class="log-list">
+                      <div class="log-item"><span>Biology - Midterm Review</span><span>90 min</span></div>
+                      <div class="log-item"><span>Psychology - Quiz Prep</span><span>45 min</span></div>
+                    </div>
+                  </div>
+                  <div class="showcase-stat">
+                    <div class="mini-label">Grades</div>
+                    <div class="mini-grade-row"><span>Exam 1</span><span class="mini-grade-pill">92%</span></div>
+                    <div class="mini-grade-row"><span>Quiz 2</span><span class="mini-grade-pill">87%</span></div>
+                  </div>
+                  <div class="showcase-stat">
+                    <div class="mini-label">Stats</div>
+                    <div class="mini-copy">Top subject: Biology</div>
+                    <div class="mini-copy">Study share: 34%</div>
+                    <div class="mini-copy">Avg session: 72 min</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="showcase-body is-hidden" data-demo-panel="sessions">
+                <div class="showcase-row">
+                  <div class="showcase-card">
+                    <div class="mini-label">Latest Log</div>
+                    <div class="mini-title">Biology</div>
+                    <div class="mini-copy">Midterm Review • 90 min • Study</div>
+                  </div>
+                  <div class="showcase-card">
+                    <div class="mini-label">Sorting</div>
+                    <div class="mini-copy">Newest First / Class A-Z</div>
+                  </div>
+                  <div class="showcase-card">
+                    <div class="mini-label">Assignment Link</div>
+                    <div class="mini-copy">Tie a study block to an exam, quiz, or project while logging it.</div>
+                  </div>
+                </div>
+                <div class="showcase-metrics">
+                  <div class="showcase-stat">
+                    <div class="mini-label">Form Inputs</div>
+                    <div class="mini-copy">Subject</div>
+                    <div class="mini-copy">Assignment</div>
+                    <div class="mini-copy">Duration</div>
+                  </div>
+                  <div class="showcase-stat">
+                    <div class="mini-label">Saved Logs</div>
+                    <div class="log-list">
+                      <div class="log-item"><span>Calc Quiz 3</span><span>60 min</span></div>
+                      <div class="log-item"><span>Psych Notes</span><span>45 min</span></div>
+                    </div>
+                  </div>
+                  <div class="showcase-stat">
+                    <div class="mini-label">Editing</div>
+                    <div class="mini-copy">Update old sessions</div>
+                    <div class="mini-copy">Attach assignment outcomes</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="showcase-body is-hidden" data-demo-panel="classes">
+                <div class="showcase-row">
+                  <div class="showcase-card">
+                    <div class="mini-label">Biology 201</div>
+                    <div class="mini-number">3.70</div>
+                    <div class="mini-copy">Class GPA</div>
+                  </div>
+                  <div class="showcase-card">
+                    <div class="mini-label">Semester GPA</div>
+                    <div class="mini-number">3.58</div>
+                    <div class="mini-copy">Across graded classes</div>
+                  </div>
+                  <div class="showcase-card">
+                    <div class="mini-label">Weight Entered</div>
+                    <div class="mini-number">65%</div>
+                    <div class="mini-copy">Assignments entered so far</div>
+                  </div>
+                </div>
+                <div class="showcase-metrics">
+                  <div class="showcase-stat">
+                    <div class="mini-label">Assignments</div>
+                    <div class="mini-grade-row"><span>Exam 1</span><span class="mini-grade-pill">92%</span></div>
+                    <div class="mini-grade-row"><span>Quiz 2</span><span class="mini-grade-pill">87%</span></div>
+                  </div>
+                  <div class="showcase-stat">
+                    <div class="mini-label">Weights</div>
+                    <div class="mini-copy">Exam 1 • 25%</div>
+                    <div class="mini-copy">Quiz 2 • 10%</div>
+                  </div>
+                  <div class="showcase-stat">
+                    <div class="mini-label">Detail View</div>
+                    <div class="mini-copy">Open a class</div>
+                    <div class="mini-copy">Edit assignments</div>
+                    <div class="mini-copy">Track class GPA</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="showcase-body is-hidden" data-demo-panel="charts">
+                <div class="showcase-bars">
+                  <div class="showcase-bar" style="height: 44%;"></div>
+                  <div class="showcase-bar" style="height: 73%;"></div>
+                  <div class="showcase-bar" style="height: 58%;"></div>
+                  <div class="showcase-bar" style="height: 84%;"></div>
+                  <div class="showcase-bar" style="height: 62%;"></div>
+                  <div class="showcase-bar" style="height: 38%;"></div>
+                  <div class="showcase-bar" style="height: 69%;"></div>
+                </div>
+                <div class="showcase-metrics">
+                  <div class="showcase-stat">
+                    <div class="mini-label">Filters</div>
+                    <div class="mini-copy">Class</div>
+                    <div class="mini-copy">Week range</div>
+                    <div class="mini-copy">Current week</div>
+                  </div>
+                  <div class="showcase-stat">
+                    <div class="mini-label">Drill Down</div>
+                    <div class="mini-copy">Open a week</div>
+                    <div class="mini-copy">See all 7 days</div>
+                  </div>
+                  <div class="showcase-stat">
+                    <div class="mini-label">Insight</div>
+                    <div class="mini-copy">Weekly comparison</div>
+                    <div class="mini-copy">Per-class distribution</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="showcase-body is-hidden" data-demo-panel="stats">
+                <div class="showcase-row">
+                  <div class="showcase-card">
+                    <div class="mini-label">Top Subject</div>
+                    <div class="mini-title">Biology</div>
+                    <div class="mini-copy">34% of total study time</div>
+                  </div>
+                  <div class="showcase-card">
+                    <div class="mini-label">Average Session</div>
+                    <div class="mini-number">72m</div>
+                    <div class="mini-copy">Typical study block</div>
+                  </div>
+                  <div class="showcase-card">
+                    <div class="mini-label">Most Active Day</div>
+                    <div class="mini-title">Tuesday</div>
+                    <div class="mini-copy">3 hr 10 min total</div>
+                  </div>
+                </div>
+                <div class="showcase-metrics">
+                  <div class="showcase-stat">
+                    <div class="mini-label">Prep Comparison</div>
+                    <div class="mini-copy">Exam 1 • 92%</div>
+                    <div class="mini-copy">5 hr 40 min studied</div>
+                  </div>
+                  <div class="showcase-stat">
+                    <div class="mini-label">Subject Share</div>
+                    <div class="mini-copy">Biology • 34%</div>
+                    <div class="mini-copy">Psychology • 22%</div>
+                  </div>
+                  <div class="showcase-stat">
+                    <div class="mini-label">Critical Stats</div>
+                    <div class="mini-copy">Focus balance</div>
+                    <div class="mini-copy">Time per subject</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section panel">
+        <p class="eyebrow">Core Value</p>
+        <h2>What The Website Is Meant To Do</h2>
+        <p>
+          Productivity Hub gives students a single place to understand how they spend time, how that connects to grades,
+          and where to focus next. Instead of juggling separate notes, trackers, and planners, the project is meant to
+          centralize all of that into one polished interface.
+        </p>
+      </section>
+
+      <section class="section grid-3">
+        <article class="metric-card">
+          <p class="eyebrow">Sessions</p>
+          <div class="metric-number">Track</div>
+          <p>Log study sessions by class, assignment, date, duration, category, and notes.</p>
+        </article>
+        <article class="metric-card">
+          <p class="eyebrow">Classes</p>
+          <div class="metric-number">Calculate</div>
+          <p>Store weighted class grades and keep a running GPA for each course and the semester.</p>
+        </article>
+        <article class="metric-card">
+          <p class="eyebrow">Stats</p>
+          <div class="metric-number">Compare</div>
+          <p>See how preparation time connects to exam and assignment outcomes over time.</p>
+        </article>
+      </section>
+
+      <section class="section panel">
+        <p class="eyebrow">Pages</p>
+        <h2>What People Can Explore</h2>
+        <div class="grid-2 section">
+          <article class="page-card">
+            <h3>Home</h3>
+            <ul>
+              <li>Intro dashboard for the product</li>
+              <li>Built-in study timer</li>
+              <li>Quick summary of activity</li>
+            </ul>
+          </article>
+          <article class="page-card">
+            <h3>Sessions</h3>
+            <ul>
+              <li>Log and edit study sessions</li>
+              <li>Sort sessions by class</li>
+              <li>Attach assignments and outcomes to study logs</li>
+            </ul>
+          </article>
+          <article class="page-card">
+            <h3>Classes</h3>
+            <ul>
+              <li>Open individual classes</li>
+              <li>Enter weighted grades for assignments, quizzes, and exams</li>
+              <li>See class GPA and semester GPA</li>
+            </ul>
+          </article>
+          <article class="page-card">
+            <h3>Charts</h3>
+            <ul>
+              <li>Compare study time week to week</li>
+              <li>Break selected weeks into daily views</li>
+              <li>Understand how time is distributed across subjects</li>
+            </ul>
+          </article>
+          <article class="page-card">
+            <h3>Stats</h3>
+            <ul>
+              <li>Subject percentages and total study time</li>
+              <li>Most active day, average session, and focus balance</li>
+              <li>Grade vs study-time comparison</li>
+            </ul>
+          </article>
+          <article class="page-card">
+            <h3>Calendar Placeholder</h3>
+            <ul>
+              <li>Reserved for future planning and schedule integrations</li>
+              <li>Future smart study planning potential</li>
+              <li>Designed to grow with the project</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section grid-2">
+        <article class="feature-card">
+          <p class="eyebrow">Why It Stands Out</p>
+          <h3>It Connects Effort To Results</h3>
+          <p>
+            The project is not just a timer or a gradebook. It is designed to show whether the way a student studies is
+            actually translating into better academic performance.
+          </p>
+        </article>
+        <article class="feature-card">
+          <p class="eyebrow">Why It Is Practical</p>
+          <h3>It Is Ready To Demonstrate</h3>
+          <p>
+            The current version already shows how a student can track sessions, class performance, and study analytics
+            inside one connected product experience.
+          </p>
+        </article>
+      </section>
+
+      <div class="footnote">
+        This page is a standalone presentation page only. It is separate from the actual app and does not change the
+        working website itself.
+      </div>
+    </main>
+    <script>
+      const buttons = document.querySelectorAll("[data-demo-tab]");
+      const panels = document.querySelectorAll("[data-demo-panel]");
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const nextTab = button.getAttribute("data-demo-tab");
+
+          buttons.forEach((item) => {
+            item.classList.toggle("active", item === button);
+          });
+
+          panels.forEach((panel) => {
+            panel.classList.toggle("is-hidden", panel.getAttribute("data-demo-panel") !== nextTab);
+          });
+        });
+      });
+    </script>
+  </body>
+  </html>
