@@ -2,7 +2,7 @@
 
 Productivity Hub is a local-first student productivity website built to help students log study sessions, track classes, calculate weighted grades and GPA, and review study trends from one clean dashboard.
 
-Active Demo HTML is uploaded here: 
+Active Demo HTML is uploaded here: https://jimmytamburrini.github.io/productivity-hub-overview/
 
 The app runs entirely in the browser using HTML, CSS, JavaScript, and `localStorage`, so no backend setup is required for the current version.
 
