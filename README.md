@@ -56,7 +56,8 @@ src/
 Because this is a static browser app, you can run it very simply:
 
 1. Clone or download the repository
-2. Open `index.html` in your browser
+2. Find the index.html file in the project folder once downloaded to your desktop
+3. Right-click to 'Open-with' and select your desired browser
 
 If you prefer, you can also serve it with a small local server.
 
@@ -86,7 +87,7 @@ The frontend sends your study data to the Netlify function, and the function cal
 
 ## Design Direction
 
-The interface uses a darker polished style with warm oak, gold, and deep neutral tones. The goal is to feel more premium and focused than a typical study dashboard while still staying practical and easy to use.
+Goal for the website is to be fully functional study tracker/planner designed to help students eliminate the excuses as to why they arent acheiving their academic goals. Allow students to identify their key weaknesses of their study process and eliminate them to succeed.
 
 ## Future Ideas
 
