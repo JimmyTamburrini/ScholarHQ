@@ -99,3 +99,5 @@ Goal for the website is to be fully functional study tracker/planner designed to
 ## Status
 
 This version is currently local-first and browser-based. It is designed as a strong foundation for a future full web app or mobile app with authentication, cloud sync, and calendar integrations.
+I also have multiple versions saved to my computer for us to eventuallly push to github, but they all require a backend program to use the AI features in. It costs money, which we do not have yet.
+In order to do so, we need a solid pitch to get accepted into the launch rogram to get funding.
