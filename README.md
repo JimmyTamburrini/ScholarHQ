@@ -1,6 +1,6 @@
-# Productivity Hub
+# ScholarHQ
 
-Productivity Hub is a local-first student productivity website built to help students log study sessions, track classes, calculate weighted grades and GPA, and review study trends from one clean dashboard.
+ScholarHQ is a local-first student productivity website built to help students log study sessions, track classes, calculate weighted grades and GPA, and review study trends from one clean dashboard.
 
 Active Demo HTML is uploaded here: https://jimmytamburrini.github.io/productivity-hub-overview/
 
