@@ -9,6 +9,7 @@ The app runs entirely in the browser using HTML, CSS, JavaScript, and `localStor
 
 ## What It Does
 
+- Create a local account, log in, and keep each browser user's study data in a separate workspace
 - Log study sessions with subject, date, duration, notes, category, and optional assignment or exam details
 - Track classes with weighted assignment entries and a running GPA for each class
 - View semester GPA across classes with saved weighted grades
@@ -29,8 +30,9 @@ The app runs entirely in the browser using HTML, CSS, JavaScript, and `localStor
 
 ## Key Behaviors
 
-- Study sessions are stored locally in the browser
-- Class gradebooks are stored locally in the browser
+- Account login and signup currently run locally in the browser as a backend-ready prototype
+- Study sessions are stored locally in the browser under the signed-in account
+- Class gradebooks are stored locally in the browser under the signed-in account
 - If a study session includes assignment info and a grade, it can publish into the matching class gradebook automatically
 - Grade-vs-study comparisons use:
   - matching subject
@@ -56,7 +58,7 @@ src/
 
 ## Run Locally
 
-Because this is a static browser app, you can run it very simply:
+Because this is a static browser app, you can run it very simply. The first screen now asks you to create a local ScholarHQ account before opening the dashboard.
 
 1. Clone or download the repository
 2. Find the index.html file in the project folder once downloaded to your desktop
@@ -101,7 +103,7 @@ Goal for the website is to be fully functional study tracker/planner designed to
 
 ## Status
 
-This version is currently local-first and browser-based. It is designed as a strong foundation for a future full web app or mobile app with authentication, cloud sync, and calendar integrations.
+This version is currently local-first and browser-based. It now includes a local-only authentication gate so students can create accounts and keep browser data separated, but those accounts are not secure server accounts yet. Do not use real passwords until a backend database and production auth provider are connected. It is designed as a strong foundation for a future full web app or mobile app with authentication, cloud sync, and calendar integrations.
 I also have multiple versions saved to my computer for us to eventuallly push to github, but they all require a backend program to use the AI features in. It costs money, which we do not have yet.
 In order to do so, we need a solid pitch to get accepted into the launch rogram to get funding.
 

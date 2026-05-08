@@ -115,6 +115,70 @@ body::before {
   position: relative;
 }
 
+.auth-shell {
+  width: min(1180px, calc(100% - 40px));
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 56px 0;
+  display: grid;
+  align-items: center;
+}
+
+.auth-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.75fr);
+  gap: 24px;
+  padding: 34px;
+  border: 1px solid var(--frame);
+  border-radius: 38px;
+  background:
+    linear-gradient(180deg, rgba(48, 36, 29, 0.92), rgba(28, 21, 17, 0.97)),
+    var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.auth-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+  padding: 12px;
+}
+
+.auth-copy h1 {
+  max-width: 12ch;
+}
+
+.auth-benefits {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.auth-benefits div {
+  padding: 16px;
+  border: 1px solid var(--frame);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.auth-benefits strong,
+.auth-benefits span {
+  display: block;
+}
+
+.auth-benefits span {
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.auth-form {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
 /* Main centered site container. */
 .page-shell {
   width: min(1520px, calc(100% - 40px));
@@ -147,6 +211,24 @@ body::before {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.nav-account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.nav-account strong {
+  color: var(--text);
+}
+
+.ghost-button.compact {
+  padding: 8px 12px;
+  font-size: 0.85rem;
 }
 
 .nav-link {
@@ -1425,6 +1507,7 @@ button:hover {
   .workspace-grid,
   .home-grid,
   .stats-grid,
+  .auth-card,
   .coach-columns,
   .coach-status-row,
   .grade-layout,
@@ -1445,6 +1528,7 @@ button:hover {
   }
 
   .site-nav,
+  .nav-account,
   .editing-banner,
   .panel-header,
   .session-item,
@@ -1466,6 +1550,7 @@ button:hover {
 
   .hero,
   .panel,
+  .auth-card,
   .summary-card,
   .session-item {
     border-radius: 24px;
@@ -1487,8 +1572,18 @@ button:hover {
     grid-template-columns: 1fr;
   }
 
-  .nav-links {
+  .nav-links,
+  .nav-account {
     width: 100%;
+  }
+
+  .auth-shell {
+    width: min(100% - 20px, 100%);
+    padding: 20px 0 36px;
+  }
+
+  .auth-card {
+    padding: 22px;
   }
 
   .chart-grid {
