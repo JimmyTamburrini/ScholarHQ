@@ -1001,7 +1001,7 @@
       <nav class="site-nav" aria-label="Primary navigation">
         <div class="brand-block">
           <p class="eyebrow">Study Tracker</p>
-          <h2>Productivity Hub</h2>
+          <h2>ScholarHQ</h2>
         </div>
         <div class="nav-links">
           ${pages
@@ -2040,7 +2040,7 @@
           <div class="feature-list">
             <div class="feature-item">
               <strong>Read your calendar</strong>
-              <p>See upcoming classes, deadlines, exams, and study blocks inside Productivity Hub.</p>
+              <p>See upcoming classes, deadlines, exams, and study blocks inside ScholarHQ.</p>
             </div>
             <div class="feature-item">
               <strong>Create and update events</strong>
@@ -2118,7 +2118,7 @@
         <article class="summary-card">
           <p class="eyebrow">Classes</p>
           <h2>${subjects.length}</h2>
-          <p>Total classes currently known in your Productivity Hub.</p>
+          <p>Total classes currently known in your ScholarHQ.</p>
         </article>
         <article class="summary-card">
           <p class="eyebrow">Graded Classes</p>
@@ -3368,5 +3368,5 @@
   }, 1000);
 
   render();
-  document.title = "Productivity Hub";
+  document.title = "ScholarHQ";
 })();

@@ -276,7 +276,7 @@ exports.handler = async function (event) {
         tools: [{ type: "web_search" }],
         tool_choice: "auto",
         input:
-          "You are an academic study-planning assistant for a student dashboard named Productivity Hub. " +
+          "You are an academic study-planning assistant for a student dashboard named ScholarHQ. " +
           "Create a concise short-term study plan from the student's recent study behavior, grades, and class workload. " +
           "If the student has named assignments, quizzes, projects, chapters, or exams in researchedTopics, use web search to research only those topics and infer what they should actually study. " +
           "Return plain text in exactly this labeled format: " +
