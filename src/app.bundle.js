@@ -34,8 +34,67 @@
   const STORAGE_KEY = "study-tracker-sessions";
   const GRADE_STORAGE_KEY = "study-tracker-grades";
   const CLASS_GRADES_STORAGE_KEY = "study-tracker-class-gradebooks";
+  const AUTH_ACCOUNTS_KEY = "scholarhq-auth-accounts";
+  const AUTH_SESSION_KEY = "scholarhq-auth-session";
   // Main HTML mount point where the whole app is drawn.
   const appRoot = document.querySelector("#app");
+
+  function safeParseJson(raw, fallback) {
+    try {
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (_error) {
+      return fallback;
+    }
+  }
+
+  function normalizeEmail(email) {
+    return String(email || "").trim().toLowerCase();
+  }
+
+  function loadAccounts() {
+    const parsed = safeParseJson(window.localStorage.getItem(AUTH_ACCOUNTS_KEY), []);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map(function (account) {
+        return {
+          id: String(account.id || ""),
+          name: String(account.name || "Student").trim() || "Student",
+          email: normalizeEmail(account.email),
+          passwordHash: String(account.passwordHash || ""),
+          salt: String(account.salt || ""),
+          createdAt: String(account.createdAt || ""),
+          lastLoginAt: String(account.lastLoginAt || ""),
+        };
+      })
+      .filter(function (account) {
+        return account.id && account.email && account.passwordHash && account.salt;
+      });
+  }
+
+  function saveAccounts(accounts) {
+    window.localStorage.setItem(AUTH_ACCOUNTS_KEY, JSON.stringify(accounts));
+  }
+
+  function loadSavedUser() {
+    const session = safeParseJson(window.localStorage.getItem(AUTH_SESSION_KEY), null);
+    if (!session || !session.userId) {
+      return null;
+    }
+
+    return loadAccounts().find(function (account) {
+      return account.id === session.userId;
+    }) || null;
+  }
+
+  let activeUser = loadSavedUser();
+
+  function getScopedStorageKey(baseKey, userId) {
+    const ownerId = userId || (activeUser && activeUser.id);
+    return ownerId ? baseKey + ":" + ownerId : baseKey;
+  }
 
   function isValidDateString(value) {
     return typeof value === "string" && !Number.isNaN(Date.parse(value));
@@ -47,6 +106,95 @@
     }
 
     return `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  function generateSalt() {
+    const values = new Uint8Array(16);
+    if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+      window.crypto.getRandomValues(values);
+      return Array.from(values)
+        .map(function (value) {
+          return value.toString(16).padStart(2, "0");
+        })
+        .join("");
+    }
+
+    return `salt-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  async function hashPassword(password, salt) {
+    const input = `${salt}:${password}`;
+
+    if (window.crypto && window.crypto.subtle && window.TextEncoder) {
+      const encoded = new TextEncoder().encode(input);
+      const digest = await window.crypto.subtle.digest("SHA-256", encoded);
+      return Array.from(new Uint8Array(digest))
+        .map(function (value) {
+          return value.toString(16).padStart(2, "0");
+        })
+        .join("");
+    }
+
+    // Fallback for older browsers. This is only for local demo accounts and is not backend-grade security.
+    var hash = 0;
+    for (var index = 0; index < input.length; index += 1) {
+      hash = (hash << 5) - hash + input.charCodeAt(index);
+      hash |= 0;
+    }
+    return String(hash);
+  }
+
+  function setActiveUser(account) {
+    activeUser = account;
+    if (account) {
+      window.localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ userId: account.id, savedAt: new Date().toISOString() }));
+    } else {
+      window.localStorage.removeItem(AUTH_SESSION_KEY);
+    }
+  }
+
+  function validateAuthFields(input, mode) {
+    const errors = {};
+    if (mode === "signup" && !String(input.name || "").trim()) {
+      errors.name = "Add your name so your dashboard can greet you.";
+    }
+
+    if (!normalizeEmail(input.email) || !normalizeEmail(input.email).includes("@")) {
+      errors.email = "Enter a valid email address.";
+    }
+
+    if (!String(input.password || "").trim()) {
+      errors.password = "Enter your password.";
+    } else if (mode === "signup" && String(input.password).length < 8) {
+      errors.password = "Use at least 8 characters.";
+    }
+
+    return errors;
+  }
+
+  function copyLegacyStorageToAccount(userId) {
+    [STORAGE_KEY, GRADE_STORAGE_KEY, CLASS_GRADES_STORAGE_KEY].forEach(function (baseKey) {
+      const scopedKey = getScopedStorageKey(baseKey, userId);
+      if (window.localStorage.getItem(scopedKey)) {
+        return;
+      }
+
+      const legacyValue = window.localStorage.getItem(baseKey);
+      if (legacyValue) {
+        window.localStorage.setItem(scopedKey, legacyValue);
+      }
+    });
+  }
+
+  function reloadAccountData() {
+    state.sessions = loadSessions();
+    state.grades = loadGrades();
+    state.classGradebooks = loadClassGradebooks();
+    state.draft = blankDraft();
+    state.errors = {};
+    state.editingId = null;
+    state.selectedClass = null;
+    state.currentPage = "home";
   }
 
   function normalizeSession(session) {
@@ -79,7 +227,7 @@
   // These functions are responsible for reading/writing study-session data.
   function loadSessions() {
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const raw = window.localStorage.getItem(getScopedStorageKey(STORAGE_KEY));
       if (!raw) {
         return [];
       }
@@ -100,14 +248,14 @@
 
   function saveSessions(sessions) {
     const normalized = sessions.map(normalizeSession);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    window.localStorage.setItem(getScopedStorageKey(STORAGE_KEY), JSON.stringify(normalized));
   }
 
   // EXAM GRADE STORAGE
   // These functions save the grade-vs-study comparison section on the Stats page.
   function loadGrades() {
     try {
-      const raw = window.localStorage.getItem(GRADE_STORAGE_KEY);
+      const raw = window.localStorage.getItem(getScopedStorageKey(GRADE_STORAGE_KEY));
       if (!raw) {
         return [];
       }
@@ -140,14 +288,14 @@
   }
 
   function saveGrades(grades) {
-    window.localStorage.setItem(GRADE_STORAGE_KEY, JSON.stringify(grades));
+    window.localStorage.setItem(getScopedStorageKey(GRADE_STORAGE_KEY), JSON.stringify(grades));
   }
 
   // CLASS GRADEBOOK STORAGE
   // These functions save weighted assignment tables for each class.
   function loadClassGradebooks() {
     try {
-      const raw = window.localStorage.getItem(CLASS_GRADES_STORAGE_KEY);
+      const raw = window.localStorage.getItem(getScopedStorageKey(CLASS_GRADES_STORAGE_KEY));
       if (!raw) {
         return {};
       }
@@ -190,7 +338,7 @@
   }
 
   function saveClassGradebooks(gradebooks) {
-    window.localStorage.setItem(CLASS_GRADES_STORAGE_KEY, JSON.stringify(gradebooks));
+    window.localStorage.setItem(getScopedStorageKey(CLASS_GRADES_STORAGE_KEY), JSON.stringify(gradebooks));
   }
 
   function createSession(input) {
@@ -986,8 +1134,79 @@
 
   // PAGE RENDERERS
   // Each render function below returns an HTML string for one piece of the UI.
+  function renderAuthPage(mode, draft, errors) {
+    const isSignup = mode === "signup";
+    const accountCount = loadAccounts().length;
+
+    return `
+      <main class="auth-shell">
+        <section class="auth-card">
+          <div class="auth-copy">
+            <p class="eyebrow">ScholarHQ Accounts</p>
+            <h1>${isSignup ? "Create your study account." : "Welcome back to ScholarHQ."}</h1>
+            <p class="hero-text">
+              Sign in to keep your study sessions, class gradebooks, charts, and AI planning data separated from other students on this browser.
+            </p>
+            <div class="auth-benefits">
+              <div>
+                <strong>Account-scoped data</strong>
+                <span>Your dashboard saves under your login instead of one shared browser profile.</span>
+              </div>
+              <div>
+                <strong>Backend-ready flow</strong>
+                <span>The login screen gives us a clean path to replace local accounts with real server auth later.</span>
+              </div>
+              <div>
+                <strong>Important security note</strong>
+                <span>This first version is local-only. Do not use a real password until a backend database is connected.</span>
+              </div>
+            </div>
+          </div>
+
+          <form class="auth-form panel" id="auth-form">
+            <input type="hidden" name="mode" value="${isSignup ? "signup" : "login"}" />
+            <div>
+              <p class="eyebrow">${isSignup ? "New Account" : "Login"}</p>
+              <h2>${isSignup ? "Start tracking progress" : "Open your dashboard"}</h2>
+              <p class="panel-copy">
+                ${accountCount ? `${accountCount} local account${accountCount === 1 ? "" : "s"} saved on this browser.` : "No local accounts yet. Create one to begin."}
+              </p>
+            </div>
+
+            ${isSignup ? `
+              <label>
+                Name
+                <input type="text" name="name" value="${escapeHtml(draft.name || "")}" autocomplete="name" placeholder="Alex Student" />
+                ${errors.name ? `<span class="field-error">${escapeHtml(errors.name)}</span>` : ""}
+              </label>
+            ` : ""}
+
+            <label>
+              Email
+              <input type="email" name="email" value="${escapeHtml(draft.email || "")}" autocomplete="email" placeholder="you@example.com" />
+              ${errors.email ? `<span class="field-error">${escapeHtml(errors.email)}</span>` : ""}
+            </label>
+
+            <label>
+              Password
+              <input type="password" name="password" autocomplete="${isSignup ? "new-password" : "current-password"}" placeholder="${isSignup ? "At least 8 characters" : "Your local password"}" />
+              ${errors.password ? `<span class="field-error">${escapeHtml(errors.password)}</span>` : ""}
+            </label>
+
+            ${errors.form ? `<div class="coach-alert">${escapeHtml(errors.form)}</div>` : ""}
+
+            <button class="primary-button" type="submit">${isSignup ? "Create account" : "Log in"}</button>
+            <button class="ghost-button" type="button" data-action="switch-auth" data-mode="${isSignup ? "login" : "signup"}">
+              ${isSignup ? "Already have an account? Log in" : "Need an account? Sign up"}
+            </button>
+          </form>
+        </section>
+      </main>
+    `;
+  }
+
   // Top navigation renderer. Add/remove pages here to change the main tabs.
-  function renderNavigation(currentPage) {
+  function renderNavigation(currentPage, currentUser) {
     const pages = [
       { key: "home", label: "Home" },
       { key: "sessions", label: "Sessions" },
@@ -1002,6 +1221,10 @@
         <div class="brand-block">
           <p class="eyebrow">Study Tracker</p>
           <h2>ScholarHQ</h2>
+        </div>
+        <div class="nav-account">
+          <span>Signed in as <strong>${escapeHtml((currentUser && currentUser.name) || "Student")}</strong></span>
+          <button class="ghost-button compact" type="button" data-action="logout">Log out</button>
         </div>
         <div class="nav-links">
           ${pages
@@ -2695,7 +2918,11 @@
   // APP STATE
   // This object is the "single source of truth" for what the UI should show.
   const state = {
-    sessions: loadSessions(),
+    currentUser: activeUser,
+    authMode: "login",
+    authErrors: {},
+    authDraft: { name: "", email: "", password: "" },
+    sessions: activeUser ? loadSessions() : [],
     draft: blankDraft(),
     errors: {},
     editingId: null,
@@ -2716,8 +2943,8 @@
       elapsedSeconds: 0,
       isRunning: false,
     },
-    grades: loadGrades(),
-    classGradebooks: loadClassGradebooks(),
+    grades: activeUser ? loadGrades() : [],
+    classGradebooks: activeUser ? loadClassGradebooks() : {},
     aiCoach: {
       loading: false,
       error: "",
@@ -2864,6 +3091,11 @@
   // Whenever state changes, this function rebuilds the current page.
   // Main render function. Rebuilds the currently selected page from app state.
   function render() {
+    if (!state.currentUser) {
+      appRoot.innerHTML = renderAuthPage(state.authMode, state.authDraft, state.authErrors);
+      return;
+    }
+
     const isEditing = Boolean(state.editingId);
     let pageContent = "";
 
@@ -2902,7 +3134,7 @@
 
     appRoot.innerHTML = `
       <main class="page-shell">
-        ${renderNavigation(state.currentPage)}
+        ${renderNavigation(state.currentPage, state.currentUser)}
         <section class="hero hero-shell">
           ${pageContent}
         </section>
@@ -2913,8 +3145,81 @@
   // EVENT HANDLERS
   // handleSubmit() manages all forms in the app.
   // Shared submit handler for every form in the app.
-  function handleSubmit(form, event) {
+  async function handleSubmit(form, event) {
     event.preventDefault();
+
+    if (form.id === "auth-form") {
+      const formData = new FormData(form);
+      const mode = String(formData.get("mode") || "login");
+      const input = {
+        name: String(formData.get("name") || "").trim(),
+        email: normalizeEmail(formData.get("email")),
+        password: String(formData.get("password") || ""),
+      };
+
+      state.authDraft = { name: input.name, email: input.email, password: "" };
+      state.authMode = mode === "signup" ? "signup" : "login";
+      state.authErrors = validateAuthFields(input, state.authMode);
+
+      if (Object.keys(state.authErrors).length > 0) {
+        render();
+        return;
+      }
+
+      const accounts = loadAccounts();
+      const existing = accounts.find(function (account) {
+        return account.email === input.email;
+      });
+
+      if (state.authMode === "signup") {
+        if (existing) {
+          state.authErrors = { email: "An account with this email already exists on this browser." };
+          render();
+          return;
+        }
+
+        const salt = generateSalt();
+        const now = new Date().toISOString();
+        const account = {
+          id: generateId(),
+          name: input.name,
+          email: input.email,
+          passwordHash: await hashPassword(input.password, salt),
+          salt: salt,
+          createdAt: now,
+          lastLoginAt: now,
+        };
+
+        saveAccounts(accounts.concat(account));
+        setActiveUser(account);
+        copyLegacyStorageToAccount(account.id);
+        state.currentUser = account;
+        state.authErrors = {};
+        state.authDraft = { name: "", email: "", password: "" };
+        reloadAccountData();
+        showFlashMessage(`Welcome to ScholarHQ, ${account.name}. Your account workspace is ready.`);
+        return;
+      }
+
+      if (!existing || existing.passwordHash !== await hashPassword(input.password, existing.salt)) {
+        state.authErrors = { form: "Email or password did not match a local account." };
+        render();
+        return;
+      }
+
+      const updatedAccount = { ...existing, lastLoginAt: new Date().toISOString() };
+      saveAccounts(accounts.map(function (account) {
+        return account.id === updatedAccount.id ? updatedAccount : account;
+      }));
+      setActiveUser(updatedAccount);
+      copyLegacyStorageToAccount(updatedAccount.id);
+      state.currentUser = updatedAccount;
+      state.authErrors = {};
+      state.authDraft = { name: "", email: "", password: "" };
+      reloadAccountData();
+      showFlashMessage(`Welcome back, ${updatedAccount.name}.`);
+      return;
+    }
 
     if (form.id === "grade-form") {
       const formData = new FormData(form);
@@ -3053,6 +3358,26 @@
     const action = target.dataset.action;
     const id = target.dataset.id;
     const subject = target.dataset.subject;
+
+    if (action === "switch-auth" && target.dataset.mode) {
+      state.authMode = target.dataset.mode === "signup" ? "signup" : "login";
+      state.authErrors = {};
+      state.authDraft = { name: "", email: state.authDraft.email || "", password: "" };
+      render();
+      return;
+    }
+
+    if (action === "logout") {
+      setActiveUser(null);
+      state.currentUser = null;
+      state.sessions = [];
+      state.grades = [];
+      state.classGradebooks = {};
+      state.timer.isRunning = false;
+      state.currentPage = "home";
+      render();
+      return;
+    }
 
     if (action === "navigate" && target.dataset.page) {
       state.currentPage = target.dataset.page;
@@ -3294,6 +3619,7 @@
     if (
       event.target instanceof HTMLFormElement &&
       (
+        event.target.id === "auth-form" ||
         event.target.id === "session-form" ||
         event.target.id === "grade-form" ||
         event.target.id === "class-grade-form"
