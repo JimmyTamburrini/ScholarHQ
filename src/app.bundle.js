@@ -34,6 +34,7 @@
   const STORAGE_KEY = "study-tracker-sessions";
   const GRADE_STORAGE_KEY = "study-tracker-grades";
   const CLASS_GRADES_STORAGE_KEY = "study-tracker-class-gradebooks";
+  const CLASS_CATALOG_STORAGE_KEY = "study-tracker-class-catalog";
   const AUTH_ACCOUNTS_KEY = "scholarhq-auth-accounts";
   const AUTH_SESSION_KEY = "scholarhq-auth-session";
   // Main HTML mount point where the whole app is drawn.
@@ -67,6 +68,7 @@
           salt: String(account.salt || ""),
           createdAt: String(account.createdAt || ""),
           lastLoginAt: String(account.lastLoginAt || ""),
+          school: String(account.school || "").trim(),
         };
       })
       .filter(function (account) {
@@ -159,6 +161,10 @@
       errors.name = "Add your name so your dashboard can greet you.";
     }
 
+    if (mode === "signup" && !String(input.school || "").trim()) {
+      errors.school = "Add your school so ScholarHQ can tailor study research to your classes.";
+    }
+
     if (!normalizeEmail(input.email) || !normalizeEmail(input.email).includes("@")) {
       errors.email = "Enter a valid email address.";
     }
@@ -173,7 +179,7 @@
   }
 
   function copyLegacyStorageToAccount(userId) {
-    [STORAGE_KEY, GRADE_STORAGE_KEY, CLASS_GRADES_STORAGE_KEY].forEach(function (baseKey) {
+    [STORAGE_KEY, GRADE_STORAGE_KEY, CLASS_GRADES_STORAGE_KEY, CLASS_CATALOG_STORAGE_KEY].forEach(function (baseKey) {
       const scopedKey = getScopedStorageKey(baseKey, userId);
       if (window.localStorage.getItem(scopedKey)) {
         return;
@@ -190,6 +196,7 @@
     state.sessions = loadSessions();
     state.grades = loadGrades();
     state.classGradebooks = loadClassGradebooks();
+    state.classCatalog = loadClassCatalog();
     state.draft = blankDraft();
     state.errors = {};
     state.editingId = null;
@@ -341,6 +348,51 @@
     window.localStorage.setItem(getScopedStorageKey(CLASS_GRADES_STORAGE_KEY), JSON.stringify(gradebooks));
   }
 
+
+  // CLASS CATALOG STORAGE
+  // These functions save the student's explicit class roster with course codes.
+  function normalizeClassCatalogEntry(entry) {
+    return {
+      id: String(entry.id || generateId()),
+      name: String(entry.name || entry.subject || "").trim(),
+      code: String(entry.code || "").trim().toUpperCase(),
+      createdAt: isValidDateString(entry.createdAt) ? entry.createdAt : new Date().toISOString(),
+    };
+  }
+
+  function loadClassCatalog() {
+    try {
+      const raw = window.localStorage.getItem(getScopedStorageKey(CLASS_CATALOG_STORAGE_KEY));
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed
+        .map(normalizeClassCatalogEntry)
+        .filter(function (entry) {
+          return entry.name;
+        })
+        .sort(function (a, b) {
+          return a.name.localeCompare(b.name);
+        });
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function saveClassCatalog(classes) {
+    const normalized = classes
+      .map(normalizeClassCatalogEntry)
+      .filter(function (entry) {
+        return entry.name;
+      })
+      .sort(function (a, b) {
+        return a.name.localeCompare(b.name);
+      });
+    window.localStorage.setItem(getScopedStorageKey(CLASS_CATALOG_STORAGE_KEY), JSON.stringify(normalized));
+  }
+
   function createSession(input) {
     const now = new Date().toISOString();
     return normalizeSession({
@@ -442,8 +494,13 @@
     return Number(value || 0).toFixed(2);
   }
 
-  function getUniqueSubjects(sessions, grades, classGradebooks) {
+  function getUniqueSubjects(sessions, grades, classGradebooks, classCatalog) {
     const subjects = new Set();
+    (classCatalog || []).forEach(function (entry) {
+      if (entry && entry.name) {
+        subjects.add(entry.name);
+      }
+    });
     sessions.forEach(function (session) {
       if (session.subject) {
         subjects.add(session.subject);
@@ -460,6 +517,22 @@
       }
     });
     return Array.from(subjects).sort();
+  }
+
+
+  function findClassCatalogEntry(subject) {
+    const normalized = String(subject || "").trim().toLowerCase();
+    return (state.classCatalog || []).find(function (entry) {
+      return String(entry.name || "").trim().toLowerCase() === normalized;
+    }) || null;
+  }
+
+  function formatClassLabel(subject) {
+    const entry = findClassCatalogEntry(subject);
+    if (!entry || !entry.code) {
+      return subject;
+    }
+    return `${subject} (${entry.code})`;
   }
 
   function calculateClassMetrics(entries) {
@@ -662,6 +735,13 @@
 
     return {
       generatedAt: new Date().toISOString(),
+      school: state.currentUser && state.currentUser.school ? state.currentUser.school : "",
+      classCatalog: (state.classCatalog || []).map(function (entry) {
+        return {
+          name: entry.name,
+          code: entry.code,
+        };
+      }),
       recentSessions: recentSessions,
       manualGrades: grades.slice(0, 12).map(function (grade) {
         return {
@@ -738,6 +818,13 @@
 
     return {
       generatedAt: new Date().toISOString(),
+      school: state.currentUser && state.currentUser.school ? state.currentUser.school : "",
+      classCatalog: (state.classCatalog || []).map(function (entry) {
+        return {
+          name: entry.name,
+          code: entry.code,
+        };
+      }),
       recentSessions: recentSessions.map(function (session) {
         return {
           subject: session.subject,
@@ -785,6 +872,33 @@
           .map(function (item) {
             const cleanItem = String(item || "").replace(/^[-*•]\s*/, "").trim();
             return `<div class="coach-list-item"><strong>${escapeHtml(cleanItem)}</strong></div>`;
+          })
+          .join("")}
+      </div>
+    `;
+  }
+
+
+  function renderRoadmapChart(blocks) {
+    if (!blocks || !blocks.length) {
+      return `<p class="coach-empty-copy">No roadmap blocks were returned this time.</p>`;
+    }
+
+    return `
+      <div class="roadmap-chart" aria-label="AI study roadmap chart">
+        ${blocks
+          .map(function (block, index) {
+            const text = String(block || "").replace(/^[-*•]\s*/, "").trim();
+            const parts = text.split(/[:|–-]/);
+            const day = parts.length > 1 ? parts[0].trim() : `Block ${index + 1}`;
+            const task = parts.length > 1 ? parts.slice(1).join(" - ").trim() : text;
+            return `
+              <div class="roadmap-step">
+                <div class="roadmap-day">${escapeHtml(day)}</div>
+                <div class="roadmap-block">${escapeHtml(task || text)}</div>
+                ${index < blocks.length - 1 ? '<div class="roadmap-arrow">➜</div>' : ""}
+              </div>
+            `;
           })
           .join("")}
       </div>
@@ -899,16 +1013,16 @@
   }
 
   function renderStudyPlanPanel(sessions, grades, classGradebooks, aiPlan) {
-    const hasData = sessions.length > 0 || grades.length > 0 || Object.keys(classGradebooks).length > 0;
+    const hasData = sessions.length > 0 || grades.length > 0 || Object.keys(classGradebooks).length > 0 || state.classCatalog.length > 0;
 
     return `
       <section class="panel ai-coach-panel study-plan-panel">
         <div class="panel-header">
           <div>
-            <p class="eyebrow">AI Study Plan</p>
-            <h2>Generate your next study roadmap</h2>
+            <p class="eyebrow">AI Study Planner + Roadmap</p>
+            <h2>Generate one clear study plan</h2>
           </div>
-          <p class="panel-copy">Build a realistic short study plan from your recent sessions, grades, and class workload, then research your logged assignment or exam topics to suggest what you should actually study.</p>
+          <p class="panel-copy">Get one formatted answer: what to focus on this week, a day-by-day roadmap chart, and researched class/topic advice based on your school, class codes, grades, and logged work.</p>
         </div>
 
         <div class="coach-status-row">
@@ -926,7 +1040,7 @@
           hasData
             ? `<div class="form-actions">
                 <button class="primary-button" type="button" data-action="generate-ai-plan" ${aiPlan.loading ? "disabled" : ""}>
-                  ${aiPlan.loading ? "Building Study Plan..." : "Generate AI Study Plan"}
+                  ${aiPlan.loading ? "Building Planner + Roadmap..." : "Generate AI Planner + Roadmap"}
                 </button>
               </div>`
             : `<div class="empty-state compact-empty-state">
@@ -946,21 +1060,21 @@
             ? `
               <div class="coach-output">
                 <div class="coach-summary-card">
-                  <p class="eyebrow">Plan Summary</p>
+                  <p class="eyebrow">1. Focus Until The Next Exam</p>
                   <h3>${escapeHtml(aiPlan.result.headline || "Your study plan is ready.")}</h3>
                   <p>${escapeHtml(aiPlan.result.summary || "The AI generated a practical study plan from your current data.")}</p>
                 </div>
 
                 <div class="coach-columns">
                   <div class="coach-section">
-                    <p class="eyebrow">Focus This Week</p>
+                    <p class="eyebrow">Priority Focus</p>
                     ${renderCoachList(
                       aiPlan.result.focusAreas || [],
                       "No focus areas were returned this time."
                     )}
                   </div>
                   <div class="coach-section">
-                    <p class="eyebrow">Suggested Blocks</p>
+                    <p class="eyebrow">Quick Study Blocks</p>
                     ${renderCoachList(
                       aiPlan.result.studyBlocks || [],
                       "No study blocks were returned this time."
@@ -968,9 +1082,14 @@
                   </div>
                 </div>
 
+                <div class="coach-section roadmap-section">
+                  <p class="eyebrow">2. Roadmap Chart</p>
+                  ${renderRoadmapChart(aiPlan.result.roadmapChart || aiPlan.result.studyBlocks || [])}
+                </div>
+
                 <div class="coach-columns">
                   <div class="coach-section">
-                    <p class="eyebrow">Researched Topics</p>
+                    <p class="eyebrow">3. Researched Class / Chapter</p>
                     ${renderCoachList(
                       aiPlan.result.researchedTopics || [],
                       "No researched topics were returned this time."
@@ -1179,6 +1298,11 @@
                 <input type="text" name="name" value="${escapeHtml(draft.name || "")}" autocomplete="name" placeholder="Alex Student" />
                 ${errors.name ? `<span class="field-error">${escapeHtml(errors.name)}</span>` : ""}
               </label>
+              <label>
+                School
+                <input type="text" name="school" value="${escapeHtml(draft.school || "")}" autocomplete="organization" placeholder="Michigan State University" />
+                ${errors.school ? `<span class="field-error">${escapeHtml(errors.school)}</span>` : ""}
+              </label>
             ` : ""}
 
             <label>
@@ -1328,7 +1452,6 @@
         </article>
       </section>
 
-      ${renderAiCoachPanel(sessions, state.grades, state.classGradebooks, state.aiCoach)}
       ${renderStudyPlanPanel(sessions, state.grades, state.classGradebooks, state.aiPlan)}
     `;
   }
@@ -2195,7 +2318,7 @@
                         <article class="grade-item">
                           <div class="grade-top">
                             <div>
-                              <p class="eyebrow">${escapeHtml(entry.subject)}</p>
+                              <p class="eyebrow">${escapeHtml(formatClassLabel(entry.subject))}</p>
                               <h3>${escapeHtml(entry.examName)}</h3>
                             </div>
                             <div class="grade-badge">${entry.gradePercent}%</div>
@@ -2350,6 +2473,33 @@
         </article>
       </section>
 
+      <section class="panel class-roster-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Create A Class</p>
+            <h2>Add class name and code</h2>
+          </div>
+          <p class="panel-copy">Enter both the class and class code (for example, Calculus I and MTH 131) so AI planning can research the right course context.</p>
+        </div>
+        <form id="class-catalog-form" class="class-entry-form" novalidate>
+          <div class="form-grid">
+            <label>
+              <span>Class</span>
+              <input type="text" name="className" value="${escapeHtml(state.classDraft.name || "")}" placeholder="Calculus I" required />
+              ${state.classErrors.name ? `<small class="field-error">${escapeHtml(state.classErrors.name)}</small>` : ""}
+            </label>
+            <label>
+              <span>Class Code</span>
+              <input type="text" name="classCode" value="${escapeHtml(state.classDraft.code || "")}" placeholder="MTH 131" required />
+              ${state.classErrors.code ? `<small class="field-error">${escapeHtml(state.classErrors.code)}</small>` : ""}
+            </label>
+          </div>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Create Class</button>
+          </div>
+        </form>
+      </section>
+
       <section class="panel">
         <div class="panel-header">
           <div>
@@ -2373,10 +2523,10 @@
                         data-subject="${escapeHtml(entry.subject)}"
                       >
                         <div class="class-card-top">
-                          <p class="eyebrow">${escapeHtml(entry.subject)}</p>
+                          <p class="eyebrow">${escapeHtml(formatClassLabel(entry.subject))}</p>
                           <span class="class-card-gpa">${entry.totalWeight > 0 ? formatGpa(entry.gpa) : "--"}</span>
                         </div>
-                        <h3>${escapeHtml(entry.subject)}</h3>
+                        <h3>${escapeHtml(formatClassLabel(entry.subject))}</h3>
                         <p>${
                           entry.totalWeight > 0
                             ? `${Math.round(entry.weightedAverage)}% weighted average across ${Math.round(entry.totalWeight)}% entered weight.`
@@ -2391,7 +2541,7 @@
             : `
               <div class="empty-state">
                 <h3>No classes yet</h3>
-                <p>Classes appear here automatically from the subjects you log in sessions or grade comparisons.</p>
+                <p>Create your first class with a class code, then log sessions against that roster.</p>
               </div>
             `
         }
@@ -2411,7 +2561,7 @@
       <section class="page-intro compact">
         <div>
           <p class="eyebrow">Class Detail</p>
-          <h1>${escapeHtml(subject)}</h1>
+          <h1>${escapeHtml(formatClassLabel(subject))}</h1>
         </div>
         <p class="hero-text">
           Enter assignment grades and the weight each one carries toward your final grade. Your class GPA stays here until you update it again.
@@ -2527,7 +2677,7 @@
           <div class="panel-header">
             <div>
               <p class="eyebrow">Grade Table</p>
-              <h2>${escapeHtml(subject)} Gradebook</h2>
+              <h2>${escapeHtml(formatClassLabel(subject))} Gradebook</h2>
             </div>
             <p class="panel-copy">Each saved item contributes to the weighted average and class GPA.</p>
           </div>
@@ -2592,7 +2742,7 @@
   }
 
   function renderClassesPage(sessions, grades, classGradebooks, selectedClass) {
-    const subjects = getUniqueSubjects(sessions, grades, classGradebooks);
+    const subjects = getUniqueSubjects(sessions, grades, classGradebooks, state.classCatalog);
 
     if (selectedClass) {
       return renderClassDetail(selectedClass, classGradebooks[selectedClass] || []);
@@ -2614,6 +2764,12 @@
     const assignmentLabel = draft.assignmentType
       ? `${draft.assignmentType.charAt(0).toUpperCase()}${draft.assignmentType.slice(1)} Name`
       : "Assignment / Exam";
+
+    const classOptions = (state.classCatalog || [])
+      .map(function (entry) {
+        return `<option value="${escapeHtml(entry.name)}">${escapeHtml(entry.code ? entry.name + " (" + entry.code + ")" : entry.name)}</option>`;
+      })
+      .join("");
 
     return `
       <section class="panel form-panel">
@@ -2639,15 +2795,17 @@
         <form id="session-form" novalidate>
           <div class="form-grid">
           <label>
-            <span>Subject</span>
+            <span>Class</span>
             <input
               type="text"
               name="subject"
                 value="${escapeHtml(draft.subject)}"
-                placeholder="Biology, Algebra, History..."
+                placeholder="Class name (example: Calculus I)"
+                list="class-roster-options"
                 maxlength="60"
                 required
             />
+            <datalist id="class-roster-options">${classOptions}</datalist>
             ${errors.subject ? `<small class="field-error">${escapeHtml(errors.subject)}</small>` : ""}
           </label>
 
@@ -2871,6 +3029,51 @@
   }
 
   // Full Sessions page renderer.
+
+  function renderProfileSetupPanel() {
+    const needsSchool = !(state.currentUser && state.currentUser.school);
+    const needsClasses = !state.classCatalog.length;
+
+    if (!needsSchool && !needsClasses) {
+      return "";
+    }
+
+    return `
+      <section class="panel onboarding-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Before You Log</p>
+            <h2>Add your school and classes</h2>
+          </div>
+          <p class="panel-copy">ScholarHQ uses your school, class names, and class codes to research the right chapter, course topic, or exam area for AI study planning.</p>
+        </div>
+        <form id="profile-setup-form" class="class-entry-form" novalidate>
+          <div class="form-grid">
+            <label>
+              <span>School</span>
+              <input type="text" name="school" value="${escapeHtml((state.currentUser && state.currentUser.school) || "")}" placeholder="Your school or university" required />
+              ${state.classErrors.school ? `<small class="field-error">${escapeHtml(state.classErrors.school)}</small>` : ""}
+            </label>
+            <label>
+              <span>Class</span>
+              <input type="text" name="className" value="${escapeHtml(state.classDraft.name || "")}" placeholder="Calculus I" required />
+              ${state.classErrors.name ? `<small class="field-error">${escapeHtml(state.classErrors.name)}</small>` : ""}
+            </label>
+            <label>
+              <span>Class Code</span>
+              <input type="text" name="classCode" value="${escapeHtml(state.classDraft.code || "")}" placeholder="MTH 131" required />
+              ${state.classErrors.code ? `<small class="field-error">${escapeHtml(state.classErrors.code)}</small>` : ""}
+            </label>
+          </div>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Save school and class</button>
+            <button class="secondary-button" type="button" data-action="go-classes">Manage all classes</button>
+          </div>
+        </form>
+      </section>
+    `;
+  }
+
   function renderSessionsPage(draft, errors, isEditing, sessions, editingId, sortMode) {
     return `
       <section class="page-intro compact">
@@ -2892,6 +3095,8 @@
           `
           : ""
       }
+
+      ${renderProfileSetupPanel()}
 
       <section class="workspace-grid">
         ${renderSessionForm({ draft: draft, errors: errors, isEditing: isEditing })}
@@ -2921,7 +3126,7 @@
     currentUser: activeUser,
     authMode: "login",
     authErrors: {},
-    authDraft: { name: "", email: "", password: "" },
+    authDraft: { name: "", school: "", email: "", password: "" },
     sessions: activeUser ? loadSessions() : [],
     draft: blankDraft(),
     errors: {},
@@ -2945,6 +3150,9 @@
     },
     grades: activeUser ? loadGrades() : [],
     classGradebooks: activeUser ? loadClassGradebooks() : {},
+    classCatalog: activeUser ? loadClassCatalog() : [],
+    classDraft: { name: "", code: "" },
+    classErrors: {},
     aiCoach: {
       loading: false,
       error: "",
@@ -3047,6 +3255,10 @@
       return grade.subject !== subject;
     });
 
+    state.classCatalog = state.classCatalog.filter(function (entry) {
+      return entry.name !== subject;
+    });
+
     state.classGradebooks = Object.keys(state.classGradebooks).reduce(function (next, key) {
       if (key !== subject) {
         next[key] = state.classGradebooks[key];
@@ -3081,6 +3293,84 @@
     persist();
     saveGrades(state.grades);
     saveClassGradebooks(state.classGradebooks);
+    saveClassCatalog(state.classCatalog);
+  }
+
+
+  function saveCurrentUserProfile(updates) {
+    if (!state.currentUser) {
+      return;
+    }
+
+    const updatedUser = {
+      ...state.currentUser,
+      ...updates,
+    };
+    const accounts = loadAccounts().map(function (account) {
+      return account.id === updatedUser.id ? updatedUser : account;
+    });
+    saveAccounts(accounts);
+    setActiveUser(updatedUser);
+    state.currentUser = updatedUser;
+  }
+
+  function saveClassFromForm(form, includeSchool) {
+    const formData = new FormData(form);
+    const school = String(formData.get("school") || "").trim();
+    const className = String(formData.get("className") || "").trim();
+    const classCode = String(formData.get("classCode") || "").trim().toUpperCase();
+    const errors = {};
+
+    if (includeSchool && !school && !(state.currentUser && state.currentUser.school)) {
+      errors.school = "Add your school first.";
+    }
+
+    if (!className) {
+      errors.name = "Enter the class name.";
+    }
+
+    if (!classCode) {
+      errors.code = "Enter the class code, like MTH 131.";
+    }
+
+    state.classDraft = { name: className, code: classCode };
+    state.classErrors = errors;
+
+    if (Object.keys(errors).length > 0) {
+      render();
+      return false;
+    }
+
+    if (includeSchool && school) {
+      saveCurrentUserProfile({ school: school });
+    }
+
+    const existingIndex = state.classCatalog.findIndex(function (entry) {
+      return entry.name.toLowerCase() === className.toLowerCase() || entry.code.toLowerCase() === classCode.toLowerCase();
+    });
+    const classEntry = {
+      id: existingIndex >= 0 ? state.classCatalog[existingIndex].id : generateId(),
+      name: className,
+      code: classCode,
+      createdAt: existingIndex >= 0 ? state.classCatalog[existingIndex].createdAt : new Date().toISOString(),
+    };
+
+    state.classCatalog = existingIndex >= 0
+      ? state.classCatalog.map(function (entry, index) { return index === existingIndex ? classEntry : entry; })
+      : state.classCatalog.concat(classEntry);
+
+    if (!state.classGradebooks[className]) {
+      state.classGradebooks = {
+        ...state.classGradebooks,
+        [className]: [],
+      };
+      saveClassGradebooks(state.classGradebooks);
+    }
+
+    saveClassCatalog(state.classCatalog);
+    state.classDraft = { name: "", code: "" };
+    state.classErrors = {};
+    return true;
   }
 
   function persist() {
@@ -3153,11 +3443,12 @@
       const mode = String(formData.get("mode") || "login");
       const input = {
         name: String(formData.get("name") || "").trim(),
+        school: String(formData.get("school") || "").trim(),
         email: normalizeEmail(formData.get("email")),
         password: String(formData.get("password") || ""),
       };
 
-      state.authDraft = { name: input.name, email: input.email, password: "" };
+      state.authDraft = { name: input.name, school: input.school, email: input.email, password: "" };
       state.authMode = mode === "signup" ? "signup" : "login";
       state.authErrors = validateAuthFields(input, state.authMode);
 
@@ -3184,6 +3475,7 @@
           id: generateId(),
           name: input.name,
           email: input.email,
+          school: input.school,
           passwordHash: await hashPassword(input.password, salt),
           salt: salt,
           createdAt: now,
@@ -3195,7 +3487,7 @@
         copyLegacyStorageToAccount(account.id);
         state.currentUser = account;
         state.authErrors = {};
-        state.authDraft = { name: "", email: "", password: "" };
+        state.authDraft = { name: "", school: "", email: "", password: "" };
         reloadAccountData();
         showFlashMessage(`Welcome to ScholarHQ, ${account.name}. Your account workspace is ready.`);
         return;
@@ -3215,9 +3507,23 @@
       copyLegacyStorageToAccount(updatedAccount.id);
       state.currentUser = updatedAccount;
       state.authErrors = {};
-      state.authDraft = { name: "", email: "", password: "" };
+      state.authDraft = { name: "", school: "", email: "", password: "" };
       reloadAccountData();
       showFlashMessage(`Welcome back, ${updatedAccount.name}.`);
+      return;
+    }
+
+    if (form.id === "profile-setup-form") {
+      if (saveClassFromForm(form, true)) {
+        showFlashMessage("School and class saved. You can now log sessions against your roster.");
+      }
+      return;
+    }
+
+    if (form.id === "class-catalog-form") {
+      if (saveClassFromForm(form, false)) {
+        showFlashMessage("Class saved with its class code.");
+      }
       return;
     }
 
@@ -3362,7 +3668,7 @@
     if (action === "switch-auth" && target.dataset.mode) {
       state.authMode = target.dataset.mode === "signup" ? "signup" : "login";
       state.authErrors = {};
-      state.authDraft = { name: "", email: state.authDraft.email || "", password: "" };
+      state.authDraft = { name: "", school: "", email: state.authDraft.email || "", password: "" };
       render();
       return;
     }
@@ -3373,6 +3679,7 @@
       state.sessions = [];
       state.grades = [];
       state.classGradebooks = {};
+      state.classCatalog = [];
       state.timer.isRunning = false;
       state.currentPage = "home";
       render();
@@ -3384,6 +3691,13 @@
       if (target.dataset.page !== "classes") {
         state.selectedClass = null;
       }
+      render();
+      return;
+    }
+
+    if (action === "go-classes") {
+      state.currentPage = "classes";
+      state.selectedClass = null;
       render();
       return;
     }

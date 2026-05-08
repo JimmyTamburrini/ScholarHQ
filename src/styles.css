@@ -1620,6 +1620,59 @@ button:hover {
   }
 }
 
+.onboarding-panel,
+.class-roster-panel,
+.roadmap-section {
+  margin-top: 20px;
+}
+
+.class-entry-form {
+  display: grid;
+  gap: 16px;
+}
+
+.roadmap-chart {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.roadmap-step {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  min-height: 150px;
+  padding: 16px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(176, 138, 75, 0.12), rgba(255, 244, 232, 0.04));
+  border: 1px solid rgba(176, 138, 75, 0.22);
+}
+
+.roadmap-day {
+  width: max-content;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(42, 52, 68, 0.72);
+  color: #fff4dd;
+  font-weight: 700;
+  font-size: 0.86rem;
+}
+
+.roadmap-block {
+  color: var(--text);
+  line-height: 1.55;
+  font-weight: 600;
+}
+
+.roadmap-arrow {
+  align-self: end;
+  justify-self: end;
+  color: var(--gold);
+  font-size: 1.45rem;
+  line-height: 1;
+}
 /* ==================== 13. COPY/PASTE COLOR TABLE ====================
 
   Use this table when you want to change a color quickly:
@@ -1728,4 +1781,3 @@ button:hover {
   098. Material Yellow: #FFEB3B
   099. Material Amber: #FFC107
   100. Material Orange: #FF9800
-==================== */

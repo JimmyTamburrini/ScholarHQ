@@ -52,12 +52,14 @@ function normalizePlanResult(parsed, rawText) {
   const focusAreas = normalizeList(parsed && parsed.focusAreas);
   const studyBlocks = normalizeList(parsed && parsed.studyBlocks);
   const researchedTopics = normalizeList(parsed && parsed.researchedTopics);
+  const roadmapChart = normalizeList(parsed && parsed.roadmapChart);
   const topicGuidance = normalizeList(parsed && parsed.topicGuidance);
   const tips = normalizeList(parsed && parsed.tips);
   const fallbackPool = []
     .concat(focusAreas)
     .concat(studyBlocks)
     .concat(researchedTopics)
+    .concat(roadmapChart)
     .concat(topicGuidance)
     .concat(tips)
     .filter(Boolean);
@@ -75,6 +77,7 @@ function normalizePlanResult(parsed, rawText) {
     summary: String((parsed && parsed.summary) || rawText || "The AI generated a study plan.").trim(),
     focusAreas: fillSection(focusAreas, 0, 3),
     studyBlocks: fillSection(studyBlocks, 0, 3),
+    roadmapChart: fillSection(roadmapChart, 0, 5),
     researchedTopics: fillSection(researchedTopics, 0, 3),
     topicGuidance: fillSection(topicGuidance, 0, 4),
     tips: fillSection(tips, 1, 4),
@@ -131,6 +134,7 @@ function parsePlanText(rawText) {
     "SUMMARY",
     "FOCUS AREAS",
     "STUDY BLOCKS",
+    "ROADMAP CHART",
     "RESEARCHED TOPICS",
     "TOPIC GUIDANCE",
     "TIPS",
@@ -140,8 +144,9 @@ function parsePlanText(rawText) {
   const summary = extractSection(rawText, "SUMMARY", sectionOrder.slice(2));
   const focusAreas = parseBullets(extractSection(rawText, "FOCUS AREAS", sectionOrder.slice(3)));
   const studyBlocks = parseBullets(extractSection(rawText, "STUDY BLOCKS", sectionOrder.slice(4)));
-  const researchedTopics = parseBullets(extractSection(rawText, "RESEARCHED TOPICS", sectionOrder.slice(5)));
-  const topicGuidance = parseBullets(extractSection(rawText, "TOPIC GUIDANCE", sectionOrder.slice(6)));
+  const roadmapChart = parseBullets(extractSection(rawText, "ROADMAP CHART", sectionOrder.slice(5)));
+  const researchedTopics = parseBullets(extractSection(rawText, "RESEARCHED TOPICS", sectionOrder.slice(6)));
+  const topicGuidance = parseBullets(extractSection(rawText, "TOPIC GUIDANCE", sectionOrder.slice(7)));
   const tips = parseBullets(extractSection(rawText, "TIPS", []));
 
   if (!headline && !summary && !focusAreas.length && !studyBlocks.length && !topicGuidance.length) {
@@ -153,6 +158,7 @@ function parsePlanText(rawText) {
     summary: summary || rawText || "The AI generated a study plan.",
     focusAreas: focusAreas,
     studyBlocks: studyBlocks,
+    roadmapChart: roadmapChart,
     researchedTopics: researchedTopics,
     topicGuidance: topicGuidance,
     tips: tips,
@@ -171,6 +177,7 @@ function buildLooseFallbackPlan(rawText) {
     summary: summary,
     focusAreas: items.slice(0, 3),
     studyBlocks: items.slice(0, 3),
+    roadmapChart: items.slice(0, 5),
     researchedTopics: items.slice(0, 3),
     topicGuidance: items.slice(0, 4),
     tips: items.slice(0, 4),
@@ -253,7 +260,8 @@ exports.handler = async function (event) {
     const hasData =
       (Array.isArray(payload.recentSessions) && payload.recentSessions.length > 0) ||
       (Array.isArray(payload.recentGrades) && payload.recentGrades.length > 0) ||
-      (Array.isArray(payload.classSummaries) && payload.classSummaries.length > 0);
+      (Array.isArray(payload.classSummaries) && payload.classSummaries.length > 0) ||
+      (Array.isArray(payload.classCatalog) && payload.classCatalog.length > 0);
 
     if (!hasData) {
       return {
@@ -277,15 +285,16 @@ exports.handler = async function (event) {
         tool_choice: "auto",
         input:
           "You are an academic study-planning assistant for a student dashboard named ScholarHQ. " +
-          "Create a concise short-term study plan from the student's recent study behavior, grades, and class workload. " +
-          "If the student has named assignments, quizzes, projects, chapters, or exams in researchedTopics, use web search to research only those topics and infer what they should actually study. " +
+          "Combine the AI study planner and roadmap into one very clear formatted answer. " +
+          "Use the student's school, class catalog with course codes, recent study behavior, grades, and workload. " +
+          "When the student provides class codes, assignments, chapters, quizzes, projects, or exams, use web search to research the likely official course/topic context and infer what chapter, topic, methods, vocabulary, or problem types they should study. " +
           "Return plain text in exactly this labeled format: " +
-          "HEADLINE:, SUMMARY:, FOCUS AREAS:, STUDY BLOCKS:, RESEARCHED TOPICS:, TOPIC GUIDANCE:, TIPS:. " +
+          "HEADLINE:, SUMMARY:, FOCUS AREAS:, STUDY BLOCKS:, ROADMAP CHART:, RESEARCHED TOPICS:, TOPIC GUIDANCE:, TIPS:. " +
           "For the list sections, use bullet points starting with '- '. Do not return JSON. " +
+          "FOCUS AREAS must tell the student what to focus on this coming week or until the next exam. " +
+          "ROADMAP CHART must be a value-stream-map-style list of day-by-day blocks using labels like Monday: Class -> Topic -> Practice -> Review, with arrows. " +
+          "RESEARCHED TOPICS and TOPIC GUIDANCE must cite what class/topic was researched and say what to actually study. " +
           "Be practical, encouraging, and specific. " +
-          "Recommend concrete study blocks with class names, task types, and realistic durations. " +
-          "Keep the response short enough for a quick dashboard card. " +
-          "Use the researched assignment names and exam topics to say what concepts, methods, problem types, or vocabulary the student should actually focus on. " +
           "Keep each list to at most 5 items and avoid markdown tables.\n\n" +
           "Student dashboard data:\n" +
           JSON.stringify(payload),
