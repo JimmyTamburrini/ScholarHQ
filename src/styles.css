@@ -4,47 +4,73 @@
 
     This file controls the entire visual design.
 
-    Quick editing map:
-    - Theme colors: :root variables below
-    - Navigation bar: .site-nav, .nav-link
-    - Main page shell: .hero, .hero-shell, .page-intro
-    - Reusable cards/panels: .summary-card, .panel
-    - Forms: input, textarea, button, .form-grid
-    - Sessions page cards: .session-item
-    - Charts page: .chart-*
-    - Stats page bars: .stat-*
-    - Classes page: .class-*, .grade-table*
-    - Phone/tablet layout: media queries at the bottom
+    QUICK EDITING TABLE OF CONTENTS
+    1. App-wide colors and spacing: variables in this :root block
+    2. Whole page foundation: page background, scrollbar, app wrapper
+    3. Login/sign-up screen: welcome box, benefits, account form
+    4. Top navigation: logo area, page links, account/logout area
+    5. Page hero/introduction: large outer UI box and page title area
+    6. Home page and AI coach: dashboard boxes, coach cards, source lists
+    7. Class and grade pages: class cards, grade form, grade table
+    8. Shared cards, forms, buttons, timer, and editing messages
+    9. Charts and analytics: graph boxes, bars, legends, detail rows
+    10. Study session list: saved-session cards, pills, empty states
+    11. Tablet layout: medium-screen responsive styles
+    12. Phone layout: small-screen responsive styles
+    13. Copy/paste color table: 100 common color codes at the very bottom
 
-    Easiest way to restyle the app:
-    1. Change the colors in :root
-    2. Adjust card/panel styles
-    3. Adjust button styles
+    EASIEST WAY TO RESTYLE THE APP
+    1. Change the named colors below first. Most of the app updates from these.
+    2. Search this file for plain-English labels like "Home page UI boxes".
+    3. Copy a color from the bottom table and paste it into a color variable.
+    4. Use rgba(...) colors when you want transparency/glass effects.
   */
 
-  /* Core color palette and reusable sizing variables. */
+  /* Main app background color behind every page. */
   --bg: #181411;
+  /* Deepest background shade used in dark gradients. */
   --bg-deep: #0f0b09;
+  /* See-through brown surface for big UI boxes. */
   --surface: rgba(35, 27, 22, 0.9);
+  /* Solid card/input background when a stronger box is needed. */
   --surface-strong: #2b211b;
+  /* Very light overlay for soft inner boxes. */
   --surface-soft: rgba(240, 232, 219, 0.06);
+  /* Main readable text color. */
   --text: #f4ede3;
+  /* Softer text color for descriptions and small details. */
   --muted: #c0b09d;
+  /* Thin divider line color. */
   --line: rgba(233, 220, 198, 0.12);
+  /* Burgundy accent for warnings, badges, and highlights. */
   --accent: #7b2d2f;
+  /* Darker burgundy accent for hover/strong states. */
   --accent-strong: #5f1f21;
+  /* Transparent burgundy fill for small pills/badges. */
   --accent-soft: rgba(123, 45, 47, 0.18);
+  /* Green action color for main buttons and active timer dot. */
   --forest: #3a4a32;
+  /* Blue-gray active navigation color. */
   --navy: #2a3444;
+  /* Gold highlight color for labels, chart lines, and scrollbars. */
   --gold: #b08a4b;
+  /* Brown accent used in gradients and selected filter chips. */
   --oak: #6c4c34;
+  /* Lighter brown accent for hover gradients. */
   --oak-light: #8b6647;
+  /* Large soft shadow under cards and panels. */
   --shadow: 0 28px 70px rgba(0, 0, 0, 0.35);
+  /* Subtle border around cards, panels, and controls. */
   --frame: rgba(230, 216, 194, 0.12);
+  /* Biggest rounded corners for major UI boxes. */
   --radius-xl: 30px;
+  /* Medium rounded corners for cards inside panels. */
   --radius-lg: 22px;
+  /* Smaller rounded corners for inputs and compact controls. */
   --radius-md: 16px;
 }
+
+/* ==================== 2. WHOLE PAGE FOUNDATION ==================== */
 
 /* Global reset so padding/border sizing behaves predictably. */
 * {
@@ -63,9 +89,21 @@ body {
   font-family: "DM Sans", sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(176, 138, 75, 0.14), transparent 24%),
-    radial-gradient(circle at top right, rgba(123, 45, 47, 0.12), transparent 22%),
-    radial-gradient(circle at bottom left, rgba(108, 76, 52, 0.14), transparent 26%),
+    radial-gradient(
+      circle at top left,
+      rgba(176, 138, 75, 0.14),
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at top right,
+      rgba(123, 45, 47, 0.12),
+      transparent 22%
+    ),
+    radial-gradient(
+      circle at bottom left,
+      rgba(108, 76, 52, 0.14),
+      transparent 26%
+    ),
     linear-gradient(160deg, #0f0b09 0%, #18120f 42%, #211915 100%);
   scrollbar-width: thin;
   scrollbar-color: var(--gold) rgba(255, 255, 255, 0.06);
@@ -115,6 +153,9 @@ body::before {
   position: relative;
 }
 
+/* ==================== 3. LOGIN AND SIGN-UP SCREEN ==================== */
+
+/* Full-screen account page wrapper. */
 .auth-shell {
   width: min(1180px, calc(100% - 40px));
   min-height: 100vh;
@@ -124,6 +165,7 @@ body::before {
   align-items: center;
 }
 
+/* Large account welcome/sign-in card. */
 .auth-card {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.75fr);
@@ -137,6 +179,7 @@ body::before {
   box-shadow: var(--shadow);
 }
 
+/* Marketing copy column inside the account card. */
 .auth-copy {
   display: flex;
   flex-direction: column;
@@ -149,6 +192,7 @@ body::before {
   max-width: 12ch;
 }
 
+/* Small benefit list on the account screen. */
 .auth-benefits {
   display: grid;
   gap: 12px;
@@ -173,11 +217,14 @@ body::before {
   line-height: 1.55;
 }
 
+/* Login/sign-up form column. */
 .auth-form {
   display: grid;
   gap: 16px;
   align-content: start;
 }
+
+/* ==================== 4. MAIN PAGE LAYOUT AND TOP NAVIGATION ==================== */
 
 /* Main centered site container. */
 .page-shell {
@@ -186,6 +233,7 @@ body::before {
   padding: 28px 0 72px;
 }
 
+/* Top navigation bar around logo, page links, and account controls. */
 .site-nav {
   /* Top navigation shell. */
   display: flex;
@@ -201,18 +249,21 @@ body::before {
   backdrop-filter: blur(14px);
 }
 
+/* ScholarHQ logo text in the top navigation. */
 .brand-block h2 {
   margin: 0;
   font-size: 1.25rem;
   letter-spacing: 0.03em;
 }
 
+/* Group of page-switching links in the top navigation. */
 .nav-links {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
 
+/* User email and logout area in the top navigation. */
 .nav-account {
   display: flex;
   align-items: center;
@@ -231,6 +282,7 @@ body::before {
   font-size: 0.85rem;
 }
 
+/* Individual page link in the top navigation. */
 .nav-link {
   padding: 10px 16px;
   background: transparent;
@@ -240,14 +292,17 @@ body::before {
   cursor: pointer;
 }
 
+/* Highlighted current page link in the top navigation. */
 .nav-link.active {
   color: #fffaf2;
   background: linear-gradient(135deg, var(--navy), #3c4657);
   border-color: rgba(255, 255, 255, 0.06);
 }
 
+/* ==================== 5. PAGE HERO AND INTRODUCTION AREA ==================== */
+
+/* Main outer UI box used on every page. */
 .hero {
-  /* Main outer content shell used on every page. */
   padding: 34px;
   border: 1px solid var(--frame);
   border-radius: 38px;
@@ -265,7 +320,11 @@ body::before {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 88% 16%, rgba(176, 138, 75, 0.16), transparent 18%),
+    radial-gradient(
+      circle at 88% 16%,
+      rgba(176, 138, 75, 0.16),
+      transparent 18%
+    ),
     radial-gradient(circle at 12% 0%, rgba(108, 76, 52, 0.14), transparent 20%);
 }
 
@@ -275,6 +334,7 @@ body::before {
   position: relative;
 }
 
+/* Page title/description row at the top of each page. */
 .page-intro {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
@@ -289,6 +349,7 @@ body::before {
   font-size: clamp(2rem, 4vw, 3.2rem);
 }
 
+/* Small gold label above page titles. */
 .eyebrow {
   margin: 0 0 10px;
   text-transform: uppercase;
@@ -328,6 +389,9 @@ h1 {
   line-height: 1.75;
 }
 
+/* ==================== 6. HOME PAGE AND AI COACH BOXES ==================== */
+
+/* Grid layouts for dashboard sections. */
 .home-grid,
 .summary-grid,
 .workspace-grid,
@@ -341,6 +405,7 @@ h1 {
   grid-template-columns: 1.1fr 0.9fr;
 }
 
+/* AI coach box on the home page. */
 .ai-coach-panel {
   margin-top: 20px;
 }
@@ -356,6 +421,7 @@ h1 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+/* Small AI coach status boxes and coach result cards. */
 .coach-chip,
 .coach-summary-card,
 .coach-section {
@@ -410,6 +476,7 @@ h1 {
   font-weight: 600;
 }
 
+/* Research source links shown by the AI coach. */
 .research-source-list {
   display: grid;
   gap: 12px;
@@ -469,12 +536,16 @@ h1 {
   align-items: start;
 }
 
+/* ==================== 7. CLASS AND GRADE PAGES ==================== */
+
+/* Grid of class cards. */
 .class-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 }
 
+/* Individual class card. */
 .class-card {
   text-align: left;
   padding: 22px;
@@ -508,6 +579,7 @@ h1 {
   font-weight: 700;
 }
 
+/* Grade manager panel. */
 .grade-panel {
   margin-top: 20px;
 }
@@ -519,6 +591,7 @@ h1 {
   align-items: start;
 }
 
+/* Grade entry form that stays visible while scrolling. */
 .grade-form {
   position: sticky;
   top: 24px;
@@ -546,16 +619,9 @@ h1 {
   margin-top: 20px;
 }
 
-.analytics-tabs {
-  margin-top: 20px;
-}
+/* ==================== 8. SHARED CARDS, PANELS, FORMS, AND BUTTONS ==================== */
 
-.analytics-filter-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
-  gap: 14px;
-}
-
+/* Home page UI boxes and reusable content panels. */
 .summary-card,
 .panel {
   /* Shared panel/card styling used across the entire app. */
@@ -568,6 +634,7 @@ h1 {
   backdrop-filter: blur(18px);
 }
 
+/* Small dashboard summary box. */
 .summary-card {
   padding: 24px;
 }
@@ -577,10 +644,12 @@ h1 {
   font-size: clamp(1.8rem, 3vw, 2.6rem);
 }
 
+/* Large reusable UI panel spacing. */
 .panel {
   padding: 28px;
 }
 
+/* Header row inside large panels. */
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -595,6 +664,7 @@ h1 {
   line-height: 1.6;
 }
 
+/* Controls above saved lists. */
 .list-toolbar {
   display: flex;
   gap: 16px;
@@ -602,6 +672,7 @@ h1 {
   flex-wrap: wrap;
 }
 
+/* Sort dropdown wrapper above lists. */
 .sort-control {
   display: grid;
   gap: 8px;
@@ -632,7 +703,9 @@ h1 {
   background-position:
     calc(100% - 22px) calc(50% - 3px),
     calc(100% - 16px) calc(50% - 3px);
-  background-size: 6px 6px, 6px 6px;
+  background-size:
+    6px 6px,
+    6px 6px;
   background-repeat: no-repeat;
 }
 
@@ -647,6 +720,7 @@ select option {
   color: var(--text);
 }
 
+/* Shared vertical spacing for lists, forms, charts, and stat rows. */
 .feature-list,
 form,
 .session-list,
@@ -659,6 +733,7 @@ form,
   gap: 18px;
 }
 
+/* Stats page row for one subject. */
 .stat-row {
   display: grid;
   gap: 10px;
@@ -697,6 +772,7 @@ form,
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.16);
 }
 
+/* Saved grade item card. */
 .grade-item {
   padding: 20px;
   border-radius: 22px;
@@ -731,6 +807,7 @@ form,
   margin: 12px 0 0;
 }
 
+/* Grade table wrapper. */
 .grade-table {
   display: grid;
   gap: 10px;
@@ -774,6 +851,7 @@ form,
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+/* Home page feature/tip box. */
 .feature-item {
   padding: 18px;
   border-radius: 20px;
@@ -786,10 +864,12 @@ form,
   line-height: 1.65;
 }
 
+/* Timer page panel. */
 .timer-panel {
   position: relative;
 }
 
+/* Big countdown timer display box. */
 .timer-display {
   /* Fixed timer box so the timer text does not move the layout around. */
   font-family: "Space Grotesk", sans-serif;
@@ -828,6 +908,7 @@ form,
   background: var(--forest);
 }
 
+/* Banner shown while editing an existing item. */
 .editing-banner {
   display: flex;
   justify-content: space-between;
@@ -841,11 +922,16 @@ form,
   color: var(--text);
 }
 
+/* Temporary success/info message banner. */
 .flash-banner {
   margin-top: 20px;
   padding: 16px 18px;
   border-radius: 20px;
-  background: linear-gradient(135deg, rgba(48, 69, 55, 0.28), rgba(34, 50, 40, 0.2));
+  background: linear-gradient(
+    135deg,
+    rgba(48, 69, 55, 0.28),
+    rgba(34, 50, 40, 0.2)
+  );
   border: 1px solid rgba(176, 138, 75, 0.18);
   color: #f6efe4;
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.18);
@@ -855,12 +941,14 @@ form,
   animation: editingPulse 1.1s ease;
 }
 
+/* Two-column form layout. */
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 
+/* Form field label wrapper. */
 label {
   display: grid;
   gap: 8px;
@@ -871,6 +959,7 @@ label span {
   font-size: 0.95rem;
 }
 
+/* Make form controls and buttons use the same font as the app. */
 input,
 textarea,
 select,
@@ -878,6 +967,7 @@ button {
   font: inherit;
 }
 
+/* Text boxes, text areas, and dropdown fields. */
 input,
 textarea,
 select {
@@ -887,7 +977,10 @@ select {
   background: rgba(8, 12, 18, 0.46);
   color: var(--text);
   padding: 14px 16px;
-  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
 
 select {
@@ -901,7 +994,9 @@ select {
   background-position:
     calc(100% - 22px) calc(50% - 3px),
     calc(100% - 16px) calc(50% - 3px);
-  background-size: 6px 6px, 6px 6px;
+  background-size:
+    6px 6px,
+    6px 6px;
   background-repeat: no-repeat;
   cursor: pointer;
 }
@@ -963,6 +1058,7 @@ input[type="range"]::-moz-range-thumb {
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
 }
 
+/* Button rows for forms, sessions, charts, and legends. */
 .form-actions,
 .session-actions,
 .chart-controls,
@@ -978,13 +1074,17 @@ button {
   cursor: pointer;
   border-radius: 999px;
   padding: 12px 18px;
-  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
 }
 
 button:hover {
   transform: translateY(-1px);
 }
 
+/* Main action button, like save/start/generate. */
 .primary-button {
   background: linear-gradient(135deg, var(--forest), #4c5f42);
   color: #fdf8f1;
@@ -995,18 +1095,21 @@ button:hover {
   background: linear-gradient(135deg, #26392e, #314b3a);
 }
 
+/* Secondary action button. */
 .secondary-button {
   background: rgba(255, 245, 235, 0.04);
   color: var(--text);
   border: 1px solid var(--frame);
 }
 
+/* Low-emphasis text button, often delete/cancel. */
 .ghost-button {
   background: transparent;
   color: #d0a7a2;
   border: 1px solid rgba(208, 167, 162, 0.18);
 }
 
+/* Chart/filter selection pill. */
 .filter-chip {
   padding: 10px 14px;
   background: rgba(255, 244, 232, 0.04);
@@ -1019,6 +1122,7 @@ button:hover {
   background: linear-gradient(135deg, var(--oak), var(--oak-light));
 }
 
+/* Small analytics insight pill. */
 .insight-pill {
   display: inline-flex;
   align-items: center;
@@ -1037,6 +1141,9 @@ button:hover {
   color: var(--gold);
 }
 
+/* ==================== 9. CHARTS AND ANALYTICS ==================== */
+
+/* Main chart drawing area. */
 .chart-grid {
   display: grid;
   gap: 16px;
@@ -1050,125 +1157,13 @@ button:hover {
   border: 1px solid var(--frame);
 }
 
+/* Grade-vs-study chart wrapper. */
 .dual-axis-shell {
   display: grid;
   gap: 14px;
 }
 
-.axis-header-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.axis-label {
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--gold);
-}
-
-.axis-label.right {
-  text-align: right;
-}
-
-.grade-study-graph {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 72px;
-  gap: 14px;
-  align-items: stretch;
-}
-
-.axis-scale {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  font-size: 0.78rem;
-  color: var(--muted);
-  padding: 8px 0;
-}
-
-.axis-scale.right {
-  text-align: right;
-}
-
-.grade-study-grid {
-  position: relative;
-  display: grid;
-  gap: 10px;
-  min-height: 390px;
-  align-items: end;
-  width: 100%;
-}
-
-.trend-line {
-  position: absolute;
-  inset: 12px 0 86px 0;
-  width: 100%;
-  height: calc(100% - 98px);
-  pointer-events: none;
-  overflow: visible;
-}
-
-.trend-line polyline {
-  fill: none;
-  stroke: var(--gold);
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 5 4;
-}
-
-.grade-study-column {
-  display: grid;
-  gap: 12px;
-  align-items: end;
-}
-
-.grade-study-plot {
-  position: relative;
-  height: 280px;
-  border-radius: 22px;
-  padding: 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--frame);
-  display: flex;
-  justify-content: center;
-  align-items: end;
-}
-
-.study-bar {
-  width: min(52px, 80%);
-  min-height: 4px;
-  border-radius: 16px 16px 8px 8px;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-}
-
-.grade-point {
-  position: absolute;
-  left: 50%;
-  width: 18px;
-  height: 18px;
-  margin-left: -9px;
-  border-radius: 999px;
-  background: #f7efe2;
-  border: 4px solid var(--gold);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
-}
-
-.grade-study-readout {
-  display: grid;
-  gap: 4px;
-  justify-items: center;
-  color: var(--muted);
-  font-size: 0.84rem;
-}
-
-.dual-axis-shell {
-  display: grid;
-  gap: 14px;
-}
-
+/* Grade-vs-study graph layout. */
 .grade-study-graph {
   position: relative;
   display: grid;
@@ -1177,6 +1172,7 @@ button:hover {
   align-items: stretch;
 }
 
+/* Small labels above the chart axes. */
 .axis-label {
   font-size: 0.78rem;
   text-transform: uppercase;
@@ -1192,6 +1188,7 @@ button:hover {
   justify-self: end;
 }
 
+/* Number scale beside the chart. */
 .axis-scale {
   display: flex;
   flex-direction: column;
@@ -1201,6 +1198,7 @@ button:hover {
   padding: 10px 0;
 }
 
+/* Grid that holds study bars and grade dots. */
 .grade-study-grid {
   position: relative;
   display: grid;
@@ -1210,6 +1208,7 @@ button:hover {
   width: 100%;
 }
 
+/* Dotted grade trend line over chart bars. */
 .trend-line {
   position: absolute;
   top: 14px;
@@ -1229,6 +1228,7 @@ button:hover {
   stroke-dasharray: 5 4;
 }
 
+/* One subject/date column in the grade-vs-study chart. */
 .grade-study-column {
   display: grid;
   gap: 10px;
@@ -1237,6 +1237,7 @@ button:hover {
   padding: 0 5px;
 }
 
+/* Inner plotting area for a study bar and grade dot. */
 .grade-study-plot {
   position: relative;
   height: 280px;
@@ -1249,6 +1250,7 @@ button:hover {
   align-items: end;
 }
 
+/* Study-hours bar in the grade chart. */
 .study-bar {
   width: min(36px, 72%);
   min-height: 4px;
@@ -1256,6 +1258,7 @@ button:hover {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
+/* Grade dot in the grade chart. */
 .grade-point {
   position: absolute;
   left: 50%;
@@ -1300,6 +1303,7 @@ button:hover {
   font-size: 0.72rem;
 }
 
+/* Clickable chart column. */
 .chart-column {
   display: grid;
   gap: 10px;
@@ -1326,6 +1330,7 @@ button:hover {
   color: var(--text);
 }
 
+/* Bar chart column background frame. */
 .chart-bar-frame {
   position: relative;
   height: 220px;
@@ -1363,7 +1368,10 @@ button:hover {
   min-height: 6px;
   border-radius: 12px 12px 6px 6px;
   box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
-  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    opacity 180ms ease;
 }
 
 .chart-bar-frame:hover .chart-segment {
@@ -1376,6 +1384,7 @@ button:hover {
   box-shadow: none;
 }
 
+/* Chart legend item. */
 .legend-item {
   display: inline-flex;
   align-items: center;
@@ -1389,6 +1398,7 @@ button:hover {
   border-radius: 999px;
 }
 
+/* Weekly details card under charts. */
 .week-detail-card {
   display: grid;
   gap: 16px;
@@ -1427,6 +1437,9 @@ button:hover {
   border-top: 1px solid var(--line);
 }
 
+/* ==================== 10. SAVED STUDY SESSION LIST ==================== */
+
+/* Saved study session card. */
 .session-item {
   display: flex;
   justify-content: space-between;
@@ -1445,6 +1458,7 @@ button:hover {
   min-width: 0;
 }
 
+/* Title row inside a saved session card. */
 .session-title-row {
   display: flex;
   justify-content: space-between;
@@ -1469,6 +1483,7 @@ button:hover {
   line-height: 1.6;
 }
 
+/* Small subject/category badge. */
 .pill {
   white-space: nowrap;
   display: inline-flex;
@@ -1480,6 +1495,7 @@ button:hover {
   font-weight: 700;
 }
 
+/* Empty list placeholder box. */
 .empty-state {
   padding: 28px;
   border-radius: 24px;
@@ -1498,6 +1514,8 @@ button:hover {
     box-shadow: var(--shadow);
   }
 }
+
+/* ==================== 11. TABLET LAYOUT ==================== */
 
 @media (max-width: 980px) {
   .summary-grid {
@@ -1523,10 +1541,6 @@ button:hover {
     grid-template-columns: 1fr;
   }
 
-  .analytics-filter-grid {
-    grid-template-columns: 1fr;
-  }
-
   .site-nav,
   .nav-account,
   .editing-banner,
@@ -1541,6 +1555,8 @@ button:hover {
     min-height: 280px;
   }
 }
+
+/* ==================== 12. PHONE LAYOUT ==================== */
 
 @media (max-width: 640px) {
   .page-shell {
@@ -1657,3 +1673,111 @@ button:hover {
   font-size: 1.45rem;
   line-height: 1;
 }
+/* ==================== 13. COPY/PASTE COLOR TABLE ====================
+
+  Use this table when you want to change a color quickly:
+  - Copy the code on the right.
+  - Paste it into one of the color variables at the top of this file.
+  - Example: change --gold: #B08A4B; to --gold: #F59E0B;
+
+  TABLE OF CONTENTS - 100 COMMON COLOR CODES
+  001. Black: #000000
+  002. White: #FFFFFF
+  003. Charcoal: #111827
+  004. Slate: #334155
+  005. Gray: #6B7280
+  006. Light Gray: #D1D5DB
+  007. Cloud: #F3F4F6
+  008. Cream: #FFF7ED
+  009. Ivory: #FFFFF0
+  010. Warm Sand: #E7D8C9
+  011. Red: #EF4444
+  012. Dark Red: #991B1B
+  013. Rose: #F43F5E
+  014. Pink: #EC4899
+  015. Hot Pink: #FF69B4
+  016. Coral: #FF7F50
+  017. Salmon: #FA8072
+  018. Maroon: #800000
+  019. Burgundy: #7B2D2F
+  020. Wine: #5F1F21
+  021. Orange: #F97316
+  022. Burnt Orange: #C2410C
+  023. Amber: #F59E0B
+  024. Gold: #B08A4B
+  025. Yellow: #FACC15
+  026. Lemon: #FEF08A
+  027. Mustard: #CA8A04
+  028. Tan: #D2B48C
+  029. Brown: #6C4C34
+  030. Chocolate: #3F2A1D
+  031. Green: #22C55E
+  032. Forest: #3A4A32
+  033. Emerald: #10B981
+  034. Mint: #A7F3D0
+  035. Sage: #8FAF8F
+  036. Olive: #808000
+  037. Lime: #84CC16
+  038. Seafoam: #2DD4BF
+  039. Teal: #14B8A6
+  040. Dark Teal: #0F766E
+  041. Blue: #3B82F6
+  042. Sky Blue: #38BDF8
+  043. Light Blue: #BFDBFE
+  044. Navy: #2A3444
+  045. Royal Blue: #2563EB
+  046. Indigo: #4F46E5
+  047. Midnight: #0F172A
+  048. Steel Blue: #4682B4
+  049. Cyan: #06B6D4
+  050. Aqua: #00FFFF
+  051. Purple: #8B5CF6
+  052. Violet: #7C3AED
+  053. Lavender: #C4B5FD
+  054. Plum: #673147
+  055. Magenta: #D946EF
+  056. Fuchsia: #FF00FF
+  057. Lilac: #D8B4FE
+  058. Mauve: #B784A7
+  059. Grape: #6D28D9
+  060. Eggplant: #312244
+  061. Warm Background: #181411
+  062. Deep Background: #0F0B09
+  063. Panel Brown: #231B16
+  064. Strong Panel: #2B211B
+  065. Text Cream: #F4EDE3
+  066. Muted Cream: #C0B09D
+  067. Soft Border: #E9DCC6
+  068. Oak: #6C4C34
+  069. Light Oak: #8B6647
+  070. Coach Green: #3A4A32
+  071. Success: #16A34A
+  072. Warning: #F59E0B
+  073. Danger: #DC2626
+  074. Info: #0EA5E9
+  075. Link Blue: #2563EB
+  076. Focus Ring: #A6844A
+  077. Transparent White: rgba(255,255,255,0.06)
+  078. Transparent Black: rgba(0,0,0,0.35)
+  079. Transparent Gold: rgba(176,138,75,0.18)
+  080. Transparent Burgundy: rgba(123,45,47,0.18)
+  081. Tailwind Slate 50: #F8FAFC
+  082. Tailwind Slate 900: #0F172A
+  083. Tailwind Zinc 900: #18181B
+  084. Tailwind Neutral 100: #F5F5F5
+  085. Tailwind Stone 800: #292524
+  086. Material Red: #F44336
+  087. Material Pink: #E91E63
+  088. Material Purple: #9C27B0
+  089. Material Deep Purple: #673AB7
+  090. Material Indigo: #3F51B5
+  091. Material Blue: #2196F3
+  092. Material Light Blue: #03A9F4
+  093. Material Cyan: #00BCD4
+  094. Material Teal: #009688
+  095. Material Green: #4CAF50
+  096. Material Light Green: #8BC34A
+  097. Material Lime: #CDDC39
+  098. Material Yellow: #FFEB3B
+  099. Material Amber: #FFC107
+  100. Material Orange: #FF9800
