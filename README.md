@@ -22,8 +22,8 @@ The app runs entirely in the browser using HTML, CSS, JavaScript, and `localStor
 ## Current Pages
 
 - `Home`: overview, timer, and quick productivity summary
-- `Sessions`: add, edit, delete, and sort study sessions
 - `Classes`: manage gradebooks, weighted grades, GPA, and class details
+- `Sessions`: add, edit, delete, and sort study sessions
 - `Charts`: weekly time charts and grade-vs-study analytics
 - `Stats`: study breakdowns and performance insights
 - `Calendar`: placeholder for planned calendar sync features

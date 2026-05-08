@@ -17,10 +17,10 @@
     Most important places to edit:
     - Navigation tabs: renderNavigation()
     - Home page: renderHomePage()
+    - Classes page: renderClassesPage(), renderClassesOverview(), renderClassDetail()
     - Sessions page: renderSessionsPage(), renderSessionForm(), renderSessionList()
     - Charts page: renderWeeklyChart(), renderAnalyticsPage()
     - Stats page: renderStatsPage()
-    - Classes page: renderClassesPage(), renderClassesOverview(), renderClassDetail()
     - Calendar page: renderCalendarPage()
     - Saved data shape: normalizeSession(), loadGrades(), loadClassGradebooks()
     - Messages after saving: getEncouragementMessage(), showFlashMessage()
@@ -1333,8 +1333,8 @@
   function renderNavigation(currentPage, currentUser) {
     const pages = [
       { key: "home", label: "Home" },
-      { key: "sessions", label: "Sessions" },
       { key: "classes", label: "Classes" },
+      { key: "sessions", label: "Sessions" },
       { key: "analytics", label: "Charts" },
       { key: "stats", label: "Stats" },
       { key: "calendar", label: "Calendar" },
