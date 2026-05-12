@@ -109,6 +109,6 @@ In order to do so, we need a solid pitch to get accepted into the launch rogram 
 
 ## Plan
 
-Currently we have no onboarding/account creation method. We need to adjust this to create a actual usable website to go public. Once done, we can start to find a custom domain, trademark, and brand. Everything will cost money including subscriptions for the AI implementation, google calander implementation, Netlify subscription, and of course custom domain for the netlify.
+Currently we have a onboarding/account creation method. It is just not secure. We need to adjust this to create a actual usable website to go public. Once done, we can start to find a custom domain, trademark, and brand. Everything will cost money including subscriptions for the AI implementation, google calander implementation, Netlify subscription, and of course custom domain for the netlify. I have added updated plans for the Netlify subscription into "Discussions"
 
 WOOHOOO MONEY SPENDING!!
