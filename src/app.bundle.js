@@ -2767,9 +2767,28 @@
 
     const classOptions = (state.classCatalog || [])
       .map(function (entry) {
-        return `<option value="${escapeHtml(entry.name)}">${escapeHtml(entry.code ? entry.name + " (" + entry.code + ")" : entry.name)}</option>`;
+        return `<option value="${escapeHtml(entry.name)}" ${draft.subject === entry.name ? "selected" : ""}>${escapeHtml(entry.code ? entry.name + " (" + entry.code + ")" : entry.name)}</option>`;
       })
       .join("");
+    const hasSavedClasses = (state.classCatalog || []).length > 0;
+    const subjectField = hasSavedClasses
+      ? `
+            <select name="subject" required>
+              <option value="" ${!draft.subject ? "selected" : ""}>Choose a saved class</option>
+              ${classOptions}
+              ${draft.subject && !findClassCatalogEntry(draft.subject) ? `<option value="${escapeHtml(draft.subject)}" selected>${escapeHtml(draft.subject)}</option>` : ""}
+            </select>
+          `
+      : `
+            <input
+              type="text"
+              name="subject"
+              value="${escapeHtml(draft.subject)}"
+              placeholder="Create a class first, then select it here"
+              maxlength="60"
+              required
+            />
+          `;
 
     return `
       <section class="panel form-panel">
@@ -2796,16 +2815,8 @@
           <div class="form-grid">
           <label>
             <span>Class</span>
-            <input
-              type="text"
-              name="subject"
-                value="${escapeHtml(draft.subject)}"
-                placeholder="Class name (example: Calculus I)"
-                list="class-roster-options"
-                maxlength="60"
-                required
-            />
-            <datalist id="class-roster-options">${classOptions}</datalist>
+            ${subjectField}
+            ${hasSavedClasses ? "" : `<small class="field-help">Add classes on the Classes page or the setup panel above so they appear as clickable choices.</small>`}
             ${errors.subject ? `<small class="field-error">${escapeHtml(errors.subject)}</small>` : ""}
           </label>
 
@@ -3935,6 +3946,8 @@
       (
         event.target.id === "auth-form" ||
         event.target.id === "session-form" ||
+        event.target.id === "profile-setup-form" ||
+        event.target.id === "class-catalog-form" ||
         event.target.id === "grade-form" ||
         event.target.id === "class-grade-form"
       )

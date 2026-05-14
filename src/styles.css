@@ -1013,6 +1013,11 @@ select:focus {
   color: #d5928f;
 }
 
+.field-help {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 input[type="range"] {
   appearance: none;
   -webkit-appearance: none;
@@ -1673,111 +1678,3 @@ button:hover {
   font-size: 1.45rem;
   line-height: 1;
 }
-/* ==================== 13. COPY/PASTE COLOR TABLE ====================
-
-  Use this table when you want to change a color quickly:
-  - Copy the code on the right.
-  - Paste it into one of the color variables at the top of this file.
-  - Example: change --gold: #B08A4B; to --gold: #F59E0B;
-
-  TABLE OF CONTENTS - 100 COMMON COLOR CODES
-  001. Black: #000000
-  002. White: #FFFFFF
-  003. Charcoal: #111827
-  004. Slate: #334155
-  005. Gray: #6B7280
-  006. Light Gray: #D1D5DB
-  007. Cloud: #F3F4F6
-  008. Cream: #FFF7ED
-  009. Ivory: #FFFFF0
-  010. Warm Sand: #E7D8C9
-  011. Red: #EF4444
-  012. Dark Red: #991B1B
-  013. Rose: #F43F5E
-  014. Pink: #EC4899
-  015. Hot Pink: #FF69B4
-  016. Coral: #FF7F50
-  017. Salmon: #FA8072
-  018. Maroon: #800000
-  019. Burgundy: #7B2D2F
-  020. Wine: #5F1F21
-  021. Orange: #F97316
-  022. Burnt Orange: #C2410C
-  023. Amber: #F59E0B
-  024. Gold: #B08A4B
-  025. Yellow: #FACC15
-  026. Lemon: #FEF08A
-  027. Mustard: #CA8A04
-  028. Tan: #D2B48C
-  029. Brown: #6C4C34
-  030. Chocolate: #3F2A1D
-  031. Green: #22C55E
-  032. Forest: #3A4A32
-  033. Emerald: #10B981
-  034. Mint: #A7F3D0
-  035. Sage: #8FAF8F
-  036. Olive: #808000
-  037. Lime: #84CC16
-  038. Seafoam: #2DD4BF
-  039. Teal: #14B8A6
-  040. Dark Teal: #0F766E
-  041. Blue: #3B82F6
-  042. Sky Blue: #38BDF8
-  043. Light Blue: #BFDBFE
-  044. Navy: #2A3444
-  045. Royal Blue: #2563EB
-  046. Indigo: #4F46E5
-  047. Midnight: #0F172A
-  048. Steel Blue: #4682B4
-  049. Cyan: #06B6D4
-  050. Aqua: #00FFFF
-  051. Purple: #8B5CF6
-  052. Violet: #7C3AED
-  053. Lavender: #C4B5FD
-  054. Plum: #673147
-  055. Magenta: #D946EF
-  056. Fuchsia: #FF00FF
-  057. Lilac: #D8B4FE
-  058. Mauve: #B784A7
-  059. Grape: #6D28D9
-  060. Eggplant: #312244
-  061. Warm Background: #181411
-  062. Deep Background: #0F0B09
-  063. Panel Brown: #231B16
-  064. Strong Panel: #2B211B
-  065. Text Cream: #F4EDE3
-  066. Muted Cream: #C0B09D
-  067. Soft Border: #E9DCC6
-  068. Oak: #6C4C34
-  069. Light Oak: #8B6647
-  070. Coach Green: #3A4A32
-  071. Success: #16A34A
-  072. Warning: #F59E0B
-  073. Danger: #DC2626
-  074. Info: #0EA5E9
-  075. Link Blue: #2563EB
-  076. Focus Ring: #A6844A
-  077. Transparent White: rgba(255,255,255,0.06)
-  078. Transparent Black: rgba(0,0,0,0.35)
-  079. Transparent Gold: rgba(176,138,75,0.18)
-  080. Transparent Burgundy: rgba(123,45,47,0.18)
-  081. Tailwind Slate 50: #F8FAFC
-  082. Tailwind Slate 900: #0F172A
-  083. Tailwind Zinc 900: #18181B
-  084. Tailwind Neutral 100: #F5F5F5
-  085. Tailwind Stone 800: #292524
-  086. Material Red: #F44336
-  087. Material Pink: #E91E63
-  088. Material Purple: #9C27B0
-  089. Material Deep Purple: #673AB7
-  090. Material Indigo: #3F51B5
-  091. Material Blue: #2196F3
-  092. Material Light Blue: #03A9F4
-  093. Material Cyan: #00BCD4
-  094. Material Teal: #009688
-  095. Material Green: #4CAF50
-  096. Material Light Green: #8BC34A
-  097. Material Lime: #CDDC39
-  098. Material Yellow: #FFEB3B
-  099. Material Amber: #FFC107
-  100. Material Orange: #FF9800
