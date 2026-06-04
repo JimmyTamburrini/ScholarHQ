@@ -62,8 +62,8 @@ function normalizeCoachResult(parsed, rawText) {
   };
 }
 
-async function handleStudyCoachRequest(request) {
-  if (request.method === "OPTIONS") {
+exports.handler = async function (event) {
+  if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 204,
       headers: {
@@ -75,7 +75,7 @@ async function handleStudyCoachRequest(request) {
     };
   }
 
-  if (request.method !== "POST") {
+  if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
       headers: {
@@ -100,7 +100,7 @@ async function handleStudyCoachRequest(request) {
   }
 
   try {
-    const payload = JSON.parse(request.body || "{}");
+    const payload = JSON.parse(event.body || "{}");
     const hasData =
       (Array.isArray(payload.recentSessions) && payload.recentSessions.length > 0) ||
       (Array.isArray(payload.manualGrades) && payload.manualGrades.length > 0) ||
@@ -178,8 +178,4 @@ async function handleStudyCoachRequest(request) {
       }),
     };
   }
-}
-
-module.exports = {
-  handleStudyCoachRequest,
 };

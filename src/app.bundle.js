@@ -1156,7 +1156,7 @@
     } catch (error) {
       const isFileProtocol = window.location.protocol === "file:";
       state.aiCoach.error = isFileProtocol
-        ? "AI Study Coach needs the Render server running. Open the project through Render or run `scholar start` locally to use it."
+        ? "AI Study Coach needs the Render server running. Open the project through Render or run `npm start` locally to use it."
         : (error && error.message) || "The AI coach could not generate advice right now.";
     } finally {
       state.aiCoach.loading = false;
@@ -1205,7 +1205,7 @@
     } catch (error) {
       const isFileProtocol = window.location.protocol === "file:";
       state.aiPlan.error = isFileProtocol
-        ? "AI Study Plan needs the Render server running. Open the project through Render or run `scholar start` locally to use it."
+        ? "AI Study Plan needs the Render server running. Open the project through Render or run `npm start` locally to use it."
         : (error && error.message) || "The AI study plan could not be generated right now.";
     } finally {
       state.aiPlan.loading = false;

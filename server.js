@@ -3,16 +3,15 @@ const http = require("http");
 const path = require("path");
 const { URL } = require("url");
 
-const { handleStudyCoachRequest } = require("./api/study-coach");
-const { handleStudyPlanRequest } = require("./api/study-plan");
+const { handler: studyCoachHandler } = require("./api/study-coach");
+const { handler: studyPlanHandler } = require("./api/study-plan");
 
 const rootDir = __dirname;
 const port = Number(process.env.PORT || 3000);
-const host = process.env.HOST || "0.0.0.0";
 
 const apiHandlers = {
-  "/api/study-coach": handleStudyCoachRequest,
-  "/api/study-plan": handleStudyPlanRequest,
+  "/api/study-coach": studyCoachHandler,
+  "/api/study-plan": studyPlanHandler,
 };
 
 const mimeTypes = {
@@ -66,7 +65,7 @@ async function handleApiRequest(req, res, handler) {
   try {
     const body = await readRequestBody(req);
     const result = await handler({
-      method: req.method,
+      httpMethod: req.method,
       headers: req.headers,
       body: body,
     });
@@ -136,11 +135,6 @@ function createServer() {
     const requestUrl = new URL(req.url || "/", "http://localhost");
     const handler = apiHandlers[requestUrl.pathname];
 
-    if (requestUrl.pathname === "/healthz") {
-      sendJson(res, 200, { status: "ok", service: "scholarhq" });
-      return;
-    }
-
     if (handler) {
       handleApiRequest(req, res, handler);
       return;
@@ -158,8 +152,8 @@ function createServer() {
 function startServer() {
   const server = createServer();
 
-  server.listen(port, host, function () {
-    console.log(`ScholarHQ is running on ${host}:${port}.`);
+  server.listen(port, function () {
+    console.log(`ScholarHQ is running on port ${port}.`);
   });
 
   return server;
