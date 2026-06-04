@@ -1,3 +1,7 @@
+function getOpenAiApiKey() {
+  return process.env.SCHOLARHQ_API || "";
+}
+
 function extractResponseText(payload) {
   if (payload && typeof payload.output_text === "string" && payload.output_text.trim()) {
     return payload.output_text.trim();
@@ -243,14 +247,16 @@ exports.handler = async function (event) {
     };
   }
 
-  if (!process.env.OPENAI_API_KEY) {
+  const openAiApiKey = getOpenAiApiKey();
+
+  if (!openAiApiKey) {
     return {
       statusCode: 500,
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        error: "OPENAI_API_KEY is not configured yet. Add it in Netlify environment variables before using AI Study Plan.",
+        error: "SCHOLARHQ_API is not configured yet. Add it in Render environment variables before using AI Study Plan.",
       }),
     };
   }
@@ -277,7 +283,7 @@ exports.handler = async function (event) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer " + process.env.OPENAI_API_KEY,
+        Authorization: "Bearer " + openAiApiKey,
       },
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || "gpt-4.1",
