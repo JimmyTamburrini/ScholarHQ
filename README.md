@@ -5,7 +5,7 @@ ScholarHQ is a local-first student productivity website built to help students l
 # Active Demo HTML is uploaded here: https://jimmytamburrini.github.io/productivity-hub-overview/
 
 
-The app runs entirely in the browser using HTML, CSS, JavaScript, and `localStorage`, so no backend setup is required for the current version.
+The core study tracker runs in the browser using HTML, CSS, JavaScript, and `localStorage`. The AI coach and study planner now use a small Render-hosted Node API so the OpenAI key stays on the server.
 
 ## What It Does
 
@@ -46,6 +46,8 @@ The app runs entirely in the browser using HTML, CSS, JavaScript, and `localStor
 - `CSS`
 - `JavaScript`
 - Browser `localStorage`
+- Render Web Service
+- Node.js API routes
 
 ## Project Structure
 
@@ -64,31 +66,46 @@ Because this is a static browser app, you can run it very simply. The first scre
 2. Find the index.html file in the project folder once downloaded to your desktop
 3. Right-click to 'Open-with' and select your desired browser
 
-If you prefer, you can also serve it with a small local server.
+If you prefer, you can also serve it with the same `scholar` command used on Render:
+
+```bash
+npm install
+npm link
+scholar start
+```
+
+You can also use the npm wrapper locally:
+
+```bash
+npm start
+```
 
 ## Main Files
 
 - `index.html` - app entry point
 - `src/app.bundle.js` - app logic, rendering, state, storage, and interactivity
 - `src/styles.css` - visual design, layout, theme, and responsive styling
-- `netlify/functions/study-coach.js` - serverless AI endpoint for the Home page coach
-- `netlify.toml` - Netlify publish and functions configuration
+- `api/study-coach.js` - Render-hosted AI endpoint for the Home page coach
+- `api/study-plan.js` - Render-hosted AI endpoint for the study planner
+- `server.js` - Node server that serves the static app and AI API routes
+- `render.yaml` - Render Blueprint configuration
 
-## AI Study Coach Setup
+## AI Study Coach Setup on Render
 
 This project now includes AI features on the Home page:
 
 - `AI Study Coach`
 - `AI Study Plan` with researched topic guidance from your logged assignments and exams
 
-To enable it:
+To enable it on Render:
 
-1. Deploy the project to Netlify
-2. Add an environment variable named `OPENAI_API_KEY`
-3. Optionally add `OPENAI_MODEL` if you want to override the default model
-4. Redeploy the site
+1. Create a Render Web Service from this repository, or use the included `render.yaml` Blueprint.
+2. Set the Render environment variable named `SCHOLARHQ_API` to your OpenAI API key. Do not commit the key to this repository.
+3. Optionally add `OPENAI_MODEL` if you want to override the default model.
+4. Use the Node runtime. The included Render Blueprint installs the `scholar` command with `npm install && npm link`, then starts the app with the exact startup command `scholar start`.
+5. Redeploy the service after saving environment variables.
 
-The frontend sends your study data to the Netlify function, and the function calls the OpenAI API securely from the server side.
+The frontend sends your study data to Render API routes at `/api/study-coach` and `/api/study-plan`, and the Render server calls the OpenAI API securely from the server side.
 
 ## Design Direction
 
@@ -109,6 +126,6 @@ In order to do so, we need a solid pitch to get accepted into the launch rogram 
 
 ## Plan
 
-Currently we have a onboarding/account creation method. It is just not secure. We need to adjust this to create a actual usable website to go public. Once done, we can start to find a custom domain, trademark, and brand. Everything will cost money including subscriptions for the AI implementation, google calander implementation, Netlify subscription, and of course custom domain for the netlify. I have added updated plans for the Netlify subscription into "Discussions"
+Currently we have a onboarding/account creation method. It is just not secure. We need to adjust this to create a actual usable website to go public. Once done, we can start to find a custom domain, trademark, and brand. Everything will cost money including subscriptions for the AI implementation, google calander implementation, Render hosting subscription, and of course custom domain for the Render site. I have added updated plans for the Render hosting subscription into "Discussions"
 
 WOOHOOO MONEY SPENDING!!
