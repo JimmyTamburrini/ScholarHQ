@@ -1,3 +1,31 @@
+const DEFAULT_OPENAI_MODEL = "gpt-5-mini";
+
+function getOpenAiApiKey() {
+  return process.env.SCHOLARHQ_API || "";
+}
+
+function getOpenAiModel() {
+  return String(process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL).trim() || DEFAULT_OPENAI_MODEL;
+}
+
+function getApiErrorMessage(payload, fallback) {
+  return payload && payload.error && payload.error.message
+    ? payload.error.message
+    : fallback || "The OpenAI request failed.";
+}
+
+function shouldRetryWithDefaultModel(response, responsePayload, requestedModel) {
+  if (requestedModel === DEFAULT_OPENAI_MODEL) {
+    return false;
+  }
+
+  const message = getApiErrorMessage(responsePayload, "");
+  return (
+    [400, 403, 404].includes(response.status) &&
+    /does not have access to model|model.*not.*found|invalid model|unsupported model|model_not_found/i.test(message)
+  );
+}
+
 function extractResponseText(payload) {
   if (payload && typeof payload.output_text === "string" && payload.output_text.trim()) {
     return payload.output_text.trim();
@@ -58,8 +86,8 @@ function normalizeCoachResult(parsed, rawText) {
   };
 }
 
-exports.handler = async function (event) {
-  if (event.httpMethod === "OPTIONS") {
+async function handleStudyCoachRequest(request) {
+  if (request.method === "OPTIONS") {
     return {
       statusCode: 204,
       headers: {
@@ -71,7 +99,7 @@ exports.handler = async function (event) {
     };
   }
 
-  if (event.httpMethod !== "POST") {
+  if (request.method !== "POST") {
     return {
       statusCode: 405,
       headers: {
@@ -81,20 +109,22 @@ exports.handler = async function (event) {
     };
   }
 
-  if (!process.env.OPENAI_API_KEY) {
+  const openAiApiKey = getOpenAiApiKey();
+
+  if (!openAiApiKey) {
     return {
       statusCode: 500,
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        error: "OPENAI_API_KEY is not configured yet. Add it in Netlify environment variables before using AI Study Coach.",
+        error: "SCHOLARHQ_API is not configured yet. Add it in Render environment variables before using AI Study Coach.",
       }),
     };
   }
 
   try {
-    const payload = JSON.parse(event.body || "{}");
+    const payload = JSON.parse(request.body || "{}");
     const hasData =
       (Array.isArray(payload.recentSessions) && payload.recentSessions.length > 0) ||
       (Array.isArray(payload.manualGrades) && payload.manualGrades.length > 0) ||
@@ -110,36 +140,46 @@ exports.handler = async function (event) {
       };
     }
 
-    const openAiResponse = await fetch("https://api.openai.com/v1/responses", {
+    const coachRequestBody = {
+      model: getOpenAiModel(),
+      input:
+        "You are an academic productivity coach for a student dashboard named ScholarHQ. " +
+        "Analyze the student's recent study behavior and class progress. " +
+        "Return only valid JSON with this exact shape: " +
+        '{ "headline": string, "summary": string, "priorities": string[], "risks": string[], "nextSteps": string[] }. ' +
+        "Be concise, practical, encouraging, and specific. " +
+        "Prefer concrete actions tied to classes, recent effort, grades, and upcoming items. " +
+        "Keep each list to at most 4 items and avoid markdown.\n\n" +
+        "Student dashboard data:\n" +
+        JSON.stringify(payload),
+    };
+
+    let openAiResponse = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer " + process.env.OPENAI_API_KEY,
+        Authorization: "Bearer " + openAiApiKey,
       },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-5-mini",
-        input:
-          "You are an academic productivity coach for a student dashboard named ScholarHQ. " +
-          "Analyze the student's recent study behavior and class progress. " +
-          "Return only valid JSON with this exact shape: " +
-          '{ "headline": string, "summary": string, "priorities": string[], "risks": string[], "nextSteps": string[] }. ' +
-          "Be concise, practical, encouraging, and specific. " +
-          "Prefer concrete actions tied to classes, recent effort, grades, and upcoming items. " +
-          "Keep each list to at most 4 items and avoid markdown.\n\n" +
-          "Student dashboard data:\n" +
-          JSON.stringify(payload),
-      }),
+      body: JSON.stringify(coachRequestBody),
     });
 
-    const responsePayload = await openAiResponse.json();
+    let responsePayload = await openAiResponse.json();
+
+    if (shouldRetryWithDefaultModel(openAiResponse, responsePayload, coachRequestBody.model)) {
+      coachRequestBody.model = DEFAULT_OPENAI_MODEL;
+      openAiResponse = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + openAiApiKey,
+        },
+        body: JSON.stringify(coachRequestBody),
+      });
+      responsePayload = await openAiResponse.json();
+    }
 
     if (!openAiResponse.ok) {
-      const apiError =
-        responsePayload &&
-        responsePayload.error &&
-        responsePayload.error.message
-          ? responsePayload.error.message
-          : "The OpenAI request failed.";
+      const apiError = getApiErrorMessage(responsePayload, "The OpenAI request failed.");
 
       return {
         statusCode: openAiResponse.status,
@@ -172,4 +212,8 @@ exports.handler = async function (event) {
       }),
     };
   }
+}
+
+module.exports = {
+  handleStudyCoachRequest,
 };
