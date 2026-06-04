@@ -1,3 +1,7 @@
+function getOpenAiApiKey() {
+  return process.env.SCHOLARHQ_API || "";
+}
+
 function extractResponseText(payload) {
   if (payload && typeof payload.output_text === "string" && payload.output_text.trim()) {
     return payload.output_text.trim();
@@ -58,8 +62,8 @@ function normalizeCoachResult(parsed, rawText) {
   };
 }
 
-exports.handler = async function (event) {
-  if (event.httpMethod === "OPTIONS") {
+async function handleStudyCoachRequest(request) {
+  if (request.method === "OPTIONS") {
     return {
       statusCode: 204,
       headers: {
@@ -71,7 +75,7 @@ exports.handler = async function (event) {
     };
   }
 
-  if (event.httpMethod !== "POST") {
+  if (request.method !== "POST") {
     return {
       statusCode: 405,
       headers: {
@@ -81,20 +85,22 @@ exports.handler = async function (event) {
     };
   }
 
-  if (!process.env.OPENAI_API_KEY) {
+  const openAiApiKey = getOpenAiApiKey();
+
+  if (!openAiApiKey) {
     return {
       statusCode: 500,
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        error: "OPENAI_API_KEY is not configured yet. Add it in Netlify environment variables before using AI Study Coach.",
+        error: "SCHOLARHQ_API is not configured yet. Add it in Render environment variables before using AI Study Coach.",
       }),
     };
   }
 
   try {
-    const payload = JSON.parse(event.body || "{}");
+    const payload = JSON.parse(request.body || "{}");
     const hasData =
       (Array.isArray(payload.recentSessions) && payload.recentSessions.length > 0) ||
       (Array.isArray(payload.manualGrades) && payload.manualGrades.length > 0) ||
@@ -114,7 +120,7 @@ exports.handler = async function (event) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer " + process.env.OPENAI_API_KEY,
+        Authorization: "Bearer " + openAiApiKey,
       },
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || "gpt-5-mini",
@@ -172,4 +178,8 @@ exports.handler = async function (event) {
       }),
     };
   }
+}
+
+module.exports = {
+  handleStudyCoachRequest,
 };

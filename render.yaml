@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: scholar
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm install --global .
+    startCommand: scholar start
+    envVars:
+      - key: SCHOLARHQ_API
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-5-mini
