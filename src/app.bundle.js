@@ -1134,7 +1134,7 @@
     render();
 
     try {
-      const response = await window.fetch("/.netlify/functions/study-coach", {
+      const response = await window.fetch("/api/study-coach", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1156,7 +1156,7 @@
     } catch (error) {
       const isFileProtocol = window.location.protocol === "file:";
       state.aiCoach.error = isFileProtocol
-        ? "AI Study Coach needs a deployed site or local server with the Netlify function enabled. Open the project through Netlify or a local Netlify dev server to use it."
+        ? "AI Study Coach needs the Render server running. Open the project through Render or run `scholar start` locally to use it."
         : (error && error.message) || "The AI coach could not generate advice right now.";
     } finally {
       state.aiCoach.loading = false;
@@ -1174,7 +1174,7 @@
     render();
 
     try {
-      const response = await window.fetch("/.netlify/functions/study-plan", {
+      const response = await window.fetch("/api/study-plan", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1205,7 +1205,7 @@
     } catch (error) {
       const isFileProtocol = window.location.protocol === "file:";
       state.aiPlan.error = isFileProtocol
-        ? "AI Study Plan needs a deployed site or local server with the Netlify function enabled. Open the project through Netlify or a local Netlify dev server to use it."
+        ? "AI Study Plan needs the Render server running. Open the project through Render or run `scholar start` locally to use it."
         : (error && error.message) || "The AI study plan could not be generated right now.";
     } finally {
       state.aiPlan.loading = false;
@@ -3929,18 +3929,23 @@
 
   // STARTUP / EVENT WIRING
   // These listeners connect the rendered HTML back to the JavaScript logic.
+  const handledFormIds = new Set([
+    "auth-form",
+    "profile-setup-form",
+    "class-catalog-form",
+    "session-form",
+    "grade-form",
+    "class-grade-form",
+  ]);
+
   appRoot.addEventListener("submit", function (event) {
-    if (
-      event.target instanceof HTMLFormElement &&
-      (
-        event.target.id === "auth-form" ||
-        event.target.id === "session-form" ||
-        event.target.id === "grade-form" ||
-        event.target.id === "class-grade-form"
-      )
-    ) {
-      handleSubmit(event.target, event);
+    const form = event.target;
+
+    if (!(form instanceof HTMLFormElement) || !handledFormIds.has(form.id)) {
+      return;
     }
+
+    handleSubmit(form, event);
   });
 
   appRoot.addEventListener("click", handleClick);
