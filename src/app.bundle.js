@@ -3929,18 +3929,23 @@
 
   // STARTUP / EVENT WIRING
   // These listeners connect the rendered HTML back to the JavaScript logic.
+  const handledFormIds = new Set([
+    "auth-form",
+    "profile-setup-form",
+    "class-catalog-form",
+    "session-form",
+    "grade-form",
+    "class-grade-form",
+  ]);
+
   appRoot.addEventListener("submit", function (event) {
-    if (
-      event.target instanceof HTMLFormElement &&
-      (
-        event.target.id === "auth-form" ||
-        event.target.id === "session-form" ||
-        event.target.id === "grade-form" ||
-        event.target.id === "class-grade-form"
-      )
-    ) {
-      handleSubmit(event.target, event);
+    const form = event.target;
+
+    if (!(form instanceof HTMLFormElement) || !handledFormIds.has(form.id)) {
+      return;
     }
+
+    handleSubmit(form, event);
   });
 
   appRoot.addEventListener("click", handleClick);
