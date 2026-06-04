@@ -3,15 +3,15 @@ const http = require("http");
 const path = require("path");
 const { URL } = require("url");
 
-const { handleStudyCoachRequest } = require("./api/study-coach");
-const { handleStudyPlanRequest } = require("./api/study-plan");
+const { handler: studyCoachHandler } = require("./api/study-coach");
+const { handler: studyPlanHandler } = require("./api/study-plan");
 
 const rootDir = __dirname;
 const port = Number(process.env.PORT || 3000);
 
 const apiHandlers = {
-  "/api/study-coach": handleStudyCoachRequest,
-  "/api/study-plan": handleStudyPlanRequest,
+  "/api/study-coach": studyCoachHandler,
+  "/api/study-plan": studyPlanHandler,
 };
 
 const mimeTypes = {
@@ -65,7 +65,7 @@ async function handleApiRequest(req, res, handler) {
   try {
     const body = await readRequestBody(req);
     const result = await handler({
-      method: req.method,
+      httpMethod: req.method,
       headers: req.headers,
       body: body,
     });

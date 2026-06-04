@@ -3,8 +3,8 @@ services:
     name: scholar
     runtime: node
     plan: free
-    buildCommand: npm install && npm link
-    startCommand: scholar start
+    buildCommand: npm install
+    startCommand: npm start
     envVars:
       - key: SCHOLARHQ_API
         sync: false

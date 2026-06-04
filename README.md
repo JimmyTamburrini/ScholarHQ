@@ -66,18 +66,17 @@ Because this is a static browser app, you can run it very simply. The first scre
 2. Find the index.html file in the project folder once downloaded to your desktop
 3. Right-click to 'Open-with' and select your desired browser
 
-If you prefer, you can also serve it with the same `scholar` command used on Render:
+If you prefer, you can also serve it with the same Node server used on Render:
 
 ```bash
 npm install
-npm link
-scholar start
+npm start
 ```
 
-You can also use the npm wrapper locally:
+The ScholarHQ command runner also supports the requested command style when the package binary is available:
 
 ```bash
-npm start
+scholar start
 ```
 
 ## Main Files
@@ -102,7 +101,7 @@ To enable it on Render:
 1. Create a Render Web Service from this repository, or use the included `render.yaml` Blueprint.
 2. Set the Render environment variable named `SCHOLARHQ_API` to your OpenAI API key. Do not commit the key to this repository.
 3. Optionally add `OPENAI_MODEL` if you want to override the default model.
-4. Use the Node runtime. The included Render Blueprint installs the `scholar` command with `npm install && npm link`, then starts the app with the exact startup command `scholar start`.
+4. Use the Node runtime. The included Render Blueprint runs `npm install` and starts the app with `npm start`, which launches the ScholarHQ command runner with `scholar start` behavior.
 5. Redeploy the service after saving environment variables.
 
 The frontend sends your study data to Render API routes at `/api/study-coach` and `/api/study-plan`, and the Render server calls the OpenAI API securely from the server side.
