@@ -3,10 +3,8 @@ services:
     name: scholar
     runtime: node
     plan: free
-    buildCommand: $ scholar
-    startCommand: $ scholar start
+    buildCommand: npm install
+    startCommand: npm start
     envVars:
       - key: SCHOLARHQ_API
         sync: false
-      - key: OPENAI_MODEL
-        value: gpt-5-mini
