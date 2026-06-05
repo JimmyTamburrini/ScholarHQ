@@ -66,6 +66,18 @@ Because this is a static browser app, you can run it very simply. The first scre
 2. Find the index.html file in the project folder once downloaded to your desktop
 3. Right-click to 'Open-with' and select your desired browser
 
+If you prefer, you can also serve it with the same `scholar start` command used on Render:
+
+```bash
+npm install
+npm install --global .
+scholar start
+```
+
+You can also use the npm wrapper locally without installing the global command:
+
+```bash
+npm start
 If you prefer, you can also serve it with the same Node server used on Render:
 
 ```bash
@@ -86,6 +98,7 @@ scholar start
 - `src/styles.css` - visual design, layout, theme, and responsive styling
 - `api/study-coach.js` - Render-hosted AI endpoint for the Home page coach
 - `api/study-plan.js` - Render-hosted AI endpoint for the study planner
+- `server.js` - Node server that serves the static app and AI API routes
 - `api/google-calendar.js` - Google OAuth, token refresh, connection status, and Calendar event creation endpoint
 - `server.js` - Node server that serves the static app and AI/API routes
 - `render.yaml` - Render Blueprint configuration
@@ -97,6 +110,30 @@ This project now includes AI features on the Home page:
 - `AI Study Coach`
 - `AI Study Plan` with researched topic guidance from your logged assignments and exams
 
+To enable it on Render, create a **Web Service** instead of a Static Site. The AI features need the Node server because the API key must stay server-side.
+
+### Option A: Use the included Render Blueprint
+
+1. Push this repository to GitHub.
+2. In Render, choose **Blueprints** and connect this repository.
+3. Render will read `render.yaml`, run `npm ci && npm install --global .`, and start the service with `scholar start`.
+4. Add the secret environment variable `SCHOLARHQ_API` in Render and set it to your OpenAI API key. Do not commit the key to this repository.
+5. Leave `OPENAI_MODEL` blank to use the default `gpt-5-mini`, or set it only to a model your OpenAI project can access. If Render still has an older inaccessible model saved, remove `OPENAI_MODEL` or change it to `gpt-5-mini`.
+6. Deploy the service, then open `https://YOUR-SERVICE.onrender.com/healthz`. It should return `{"status":"ok","service":"scholarhq"}`.
+7. Open your Render service URL and use the app from that URL, not from `file://`, so the browser can call `/api/study-coach` and `/api/study-plan`.
+
+### Option B: Create the Render Web Service manually
+
+Use these settings when creating the service:
+
+- **Service type:** Web Service
+- **Runtime:** Node
+- **Build command:** `npm ci && npm install --global .`
+- **Start command:** `scholar start`
+- **Environment variable:** `SCHOLARHQ_API` = your OpenAI API key
+- **Optional environment variable:** `OPENAI_MODEL` = a model your OpenAI project can access. Leave it blank to use `gpt-5-mini`; avoid older models your OpenAI project cannot access.
+
+The frontend sends your study data to Render API routes at `/api/study-coach` and `/api/study-plan`, and the Render server calls the OpenAI API securely from the server side.
 To enable it on Render:
 
 1. Create a Render Web Service from this repository, or use the included `render.yaml` Blueprint.
