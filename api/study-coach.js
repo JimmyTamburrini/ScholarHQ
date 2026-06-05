@@ -2,70 +2,6 @@ function getOpenAiApiKey() {
   return process.env.SCHOLARHQ_API || "";
 }
 
-const DEFAULT_OPENAI_MODELS = ["gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o-mini"];
-
-function parseModelList(value) {
-  return String(value || "")
-    .split(",")
-    .map(function (model) {
-      return model.trim();
-    })
-    .filter(Boolean);
-}
-
-function getOpenAiModelCandidates() {
-  const explicitCandidates = parseModelList(process.env.OPENAI_MODEL_CANDIDATES);
-  const preferredModels = parseModelList(process.env.OPENAI_MODEL);
-  const modelList = explicitCandidates.length
-    ? explicitCandidates
-    : preferredModels.concat(DEFAULT_OPENAI_MODELS);
-  const seen = new Set();
-
-  return modelList.filter(function (model) {
-    if (seen.has(model)) {
-      return false;
-    }
-
-    seen.add(model);
-    return true;
-  });
-}
-
-function getOpenAiErrorMessage(responsePayload, responseText) {
-  return responsePayload && responsePayload.error && responsePayload.error.message
-    ? responsePayload.error.message
-    : responseText || "The OpenAI request failed.";
-}
-
-function isRetryableModelAccessError(statusCode, errorMessage) {
-  const normalizedMessage = String(errorMessage || "").toLowerCase();
-
-  return (
-    statusCode === 400 &&
-    (normalizedMessage.includes("does not have access to model") ||
-      normalizedMessage.includes("model_not_found") ||
-      normalizedMessage.includes("model not found") ||
-      normalizedMessage.includes("unsupported model"))
-  );
-}
-
-function buildOpenAiAccessError(modelErrors) {
-  const attemptedModels = modelErrors
-    .map(function (entry) {
-      return entry.model;
-    })
-    .join(", ");
-  const lastError = modelErrors.length ? modelErrors[modelErrors.length - 1].message : "The OpenAI request failed.";
-
-  return (
-    "The configured OpenAI project could not access any attempted ScholarHQ model (" +
-    attemptedModels +
-    "). Last OpenAI error: " +
-    lastError +
-    " This usually means the Render SCHOLARHQ_API key belongs to a project without billing/API credits or without access to those models. Add billing/API credits in OpenAI, or set OPENAI_MODEL_CANDIDATES in Render to a comma-separated list of model IDs your project can use."
-  );
-}
-
 function extractResponseText(payload) {
   if (payload && typeof payload.output_text === "string" && payload.output_text.trim()) {
     return payload.output_text.trim();
@@ -201,17 +137,15 @@ exports.handler = async function (event) {
       }),
     });
 
-      if (openAiResponse.ok) {
-        break;
-      }
+    const responsePayload = await openAiResponse.json();
 
-      const apiError = getOpenAiErrorMessage(responsePayload, responseText);
-      modelErrors.push({ model: model, message: apiError });
-
-      if (isRetryableModelAccessError(openAiResponse.status, apiError)) {
-        responsePayload = null;
-        continue;
-      }
+    if (!openAiResponse.ok) {
+      const apiError =
+        responsePayload &&
+        responsePayload.error &&
+        responsePayload.error.message
+          ? responsePayload.error.message
+          : "The OpenAI request failed.";
 
       return {
         statusCode: openAiResponse.status,
@@ -219,16 +153,6 @@ exports.handler = async function (event) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ error: apiError }),
-      };
-    }
-
-    if (!responsePayload) {
-      return {
-        statusCode: 500,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ error: buildOpenAiAccessError(modelErrors) }),
       };
     }
 
