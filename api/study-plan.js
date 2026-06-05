@@ -1,39 +1,5 @@
-const DEFAULT_OPENAI_MODEL = "gpt-5-mini";
-
 function getOpenAiApiKey() {
   return process.env.SCHOLARHQ_API || "";
-}
-
-function isBlockedOpenAiModel(model) {
-  return /^gpt-4[.]1$/i.test(String(model || "").trim());
-}
-
-function getOpenAiModel() {
-  const configuredModel = String(process.env.OPENAI_MODEL || "").trim();
-
-  if (!configuredModel || isBlockedOpenAiModel(configuredModel)) {
-    return DEFAULT_OPENAI_MODEL;
-  }
-
-  return configuredModel;
-}
-
-function getApiErrorMessage(payload, fallback) {
-  return payload && payload.error && payload.error.message
-    ? payload.error.message
-    : fallback || "The OpenAI request failed.";
-}
-
-function shouldRetryWithDefaultModel(response, responsePayload, requestedModel) {
-  if (requestedModel === DEFAULT_OPENAI_MODEL) {
-    return false;
-  }
-
-  const message = getApiErrorMessage(responsePayload, "");
-  return (
-    [400, 403, 404].includes(response.status) &&
-    /does not have access to model|model.*not.*found|invalid model|unsupported model|model_not_found/i.test(message)
-  );
 }
 
 function extractResponseText(payload) {
@@ -258,8 +224,8 @@ function extractSources(payload) {
   }).slice(0, 8);
 }
 
-async function handleStudyPlanRequest(request) {
-  if (request.method === "OPTIONS") {
+exports.handler = async function (event) {
+  if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 204,
       headers: {
@@ -271,7 +237,7 @@ async function handleStudyPlanRequest(request) {
     };
   }
 
-  if (request.method !== "POST") {
+  if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
       headers: {
@@ -296,7 +262,7 @@ async function handleStudyPlanRequest(request) {
   }
 
   try {
-    const payload = JSON.parse(request.body || "{}");
+    const payload = JSON.parse(event.body || "{}");
     const hasData =
       (Array.isArray(payload.recentSessions) && payload.recentSessions.length > 0) ||
       (Array.isArray(payload.recentGrades) && payload.recentGrades.length > 0) ||
@@ -313,37 +279,35 @@ async function handleStudyPlanRequest(request) {
       };
     }
 
-    const planRequestBody = {
-      model: getOpenAiModel(),
-      tools: [{ type: "web_search" }],
-      tool_choice: "auto",
-      input:
-        "You are an academic study-planning assistant for a student dashboard named ScholarHQ. " +
-        "Combine the AI study planner and roadmap into one very clear formatted answer. " +
-        "Use the student's school, class catalog with course codes, recent study behavior, grades, and workload. " +
-        "When the student provides class codes, assignments, chapters, quizzes, projects, or exams, use web search to research the likely official course/topic context and infer what chapter, topic, methods, vocabulary, or problem types they should study. " +
-        "Return plain text in exactly this labeled format: " +
-        "HEADLINE:, SUMMARY:, FOCUS AREAS:, STUDY BLOCKS:, ROADMAP CHART:, RESEARCHED TOPICS:, TOPIC GUIDANCE:, TIPS:. " +
-        "For the list sections, use bullet points starting with '- '. Do not return JSON. " +
-        "FOCUS AREAS must tell the student what to focus on this coming week or until the next exam. " +
-        "ROADMAP CHART must be a value-stream-map-style list of day-by-day blocks using labels like Monday: Class -> Topic -> Practice -> Review, with arrows. " +
-        "RESEARCHED TOPICS and TOPIC GUIDANCE must cite what class/topic was researched and say what to actually study. " +
-        "Be practical, encouraging, and specific. " +
-        "Keep each list to at most 5 items and avoid markdown tables.\n\n" +
-        "Student dashboard data:\n" +
-        JSON.stringify(payload),
-    };
-
-    let openAiResponse = await fetch("https://api.openai.com/v1/responses", {
+    const openAiResponse = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: "Bearer " + openAiApiKey,
       },
-      body: JSON.stringify(planRequestBody),
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        tools: [{ type: "web_search_preview" }],
+        tool_choice: "auto",
+        input:
+          "You are an academic study-planning assistant for a student dashboard named ScholarHQ. " +
+          "Combine the AI study planner and roadmap into one very clear formatted answer. " +
+          "Use the student's school, class catalog with course codes, recent study behavior, grades, and workload. " +
+          "When the student provides class codes, assignments, chapters, quizzes, projects, or exams, use web search to research the likely official course/topic context and infer what chapter, topic, methods, vocabulary, or problem types they should study. " +
+          "Return plain text in exactly this labeled format: " +
+          "HEADLINE:, SUMMARY:, FOCUS AREAS:, STUDY BLOCKS:, ROADMAP CHART:, RESEARCHED TOPICS:, TOPIC GUIDANCE:, TIPS:. " +
+          "For the list sections, use bullet points starting with '- '. Do not return JSON. " +
+          "FOCUS AREAS must tell the student what to focus on this coming week or until the next exam. " +
+          "ROADMAP CHART must be a value-stream-map-style list of day-by-day blocks using labels like Monday: Class -> Topic -> Practice -> Review, with arrows. " +
+          "RESEARCHED TOPICS and TOPIC GUIDANCE must cite what class/topic was researched and say what to actually study. " +
+          "Be practical, encouraging, and specific. " +
+          "Keep each list to at most 5 items and avoid markdown tables.\n\n" +
+          "Student dashboard data:\n" +
+          JSON.stringify(payload),
+      }),
     });
 
-    let responseText = await openAiResponse.text();
+    const responseText = await openAiResponse.text();
     let responsePayload = null;
 
     try {
@@ -352,27 +316,11 @@ async function handleStudyPlanRequest(request) {
       responsePayload = null;
     }
 
-    if (shouldRetryWithDefaultModel(openAiResponse, responsePayload, planRequestBody.model)) {
-      planRequestBody.model = DEFAULT_OPENAI_MODEL;
-      openAiResponse = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + openAiApiKey,
-        },
-        body: JSON.stringify(planRequestBody),
-      });
-      responseText = await openAiResponse.text();
-
-      try {
-        responsePayload = JSON.parse(responseText);
-      } catch (_error) {
-        responsePayload = null;
-      }
-    }
-
     if (!openAiResponse.ok) {
-      const apiError = getApiErrorMessage(responsePayload, responseText || "The OpenAI request failed.");
+      const apiError =
+        responsePayload && responsePayload.error && responsePayload.error.message
+          ? responsePayload.error.message
+          : responseText || "The OpenAI request failed.";
 
       return {
         statusCode: openAiResponse.status,
@@ -418,8 +366,4 @@ async function handleStudyPlanRequest(request) {
       }),
     };
   }
-}
-
-module.exports = {
-  handleStudyPlanRequest,
 };

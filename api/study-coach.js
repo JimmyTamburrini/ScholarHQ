@@ -1,39 +1,5 @@
-const DEFAULT_OPENAI_MODEL = "gpt-5-mini";
-
 function getOpenAiApiKey() {
   return process.env.SCHOLARHQ_API || "";
-}
-
-function isBlockedOpenAiModel(model) {
-  return /^gpt-4[.]1$/i.test(String(model || "").trim());
-}
-
-function getOpenAiModel() {
-  const configuredModel = String(process.env.OPENAI_MODEL || "").trim();
-
-  if (!configuredModel || isBlockedOpenAiModel(configuredModel)) {
-    return DEFAULT_OPENAI_MODEL;
-  }
-
-  return configuredModel;
-}
-
-function getApiErrorMessage(payload, fallback) {
-  return payload && payload.error && payload.error.message
-    ? payload.error.message
-    : fallback || "The OpenAI request failed.";
-}
-
-function shouldRetryWithDefaultModel(response, responsePayload, requestedModel) {
-  if (requestedModel === DEFAULT_OPENAI_MODEL) {
-    return false;
-  }
-
-  const message = getApiErrorMessage(responsePayload, "");
-  return (
-    [400, 403, 404].includes(response.status) &&
-    /does not have access to model|model.*not.*found|invalid model|unsupported model|model_not_found/i.test(message)
-  );
 }
 
 function extractResponseText(payload) {
@@ -96,8 +62,8 @@ function normalizeCoachResult(parsed, rawText) {
   };
 }
 
-async function handleStudyCoachRequest(request) {
-  if (request.method === "OPTIONS") {
+exports.handler = async function (event) {
+  if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 204,
       headers: {
@@ -109,7 +75,7 @@ async function handleStudyCoachRequest(request) {
     };
   }
 
-  if (request.method !== "POST") {
+  if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
       headers: {
@@ -134,7 +100,7 @@ async function handleStudyCoachRequest(request) {
   }
 
   try {
-    const payload = JSON.parse(request.body || "{}");
+    const payload = JSON.parse(event.body || "{}");
     const hasData =
       (Array.isArray(payload.recentSessions) && payload.recentSessions.length > 0) ||
       (Array.isArray(payload.manualGrades) && payload.manualGrades.length > 0) ||
@@ -150,46 +116,36 @@ async function handleStudyCoachRequest(request) {
       };
     }
 
-    const coachRequestBody = {
-      model: getOpenAiModel(),
-      input:
-        "You are an academic productivity coach for a student dashboard named ScholarHQ. " +
-        "Analyze the student's recent study behavior and class progress. " +
-        "Return only valid JSON with this exact shape: " +
-        '{ "headline": string, "summary": string, "priorities": string[], "risks": string[], "nextSteps": string[] }. ' +
-        "Be concise, practical, encouraging, and specific. " +
-        "Prefer concrete actions tied to classes, recent effort, grades, and upcoming items. " +
-        "Keep each list to at most 4 items and avoid markdown.\n\n" +
-        "Student dashboard data:\n" +
-        JSON.stringify(payload),
-    };
-
-    let openAiResponse = await fetch("https://api.openai.com/v1/responses", {
+    const openAiResponse = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: "Bearer " + openAiApiKey,
       },
-      body: JSON.stringify(coachRequestBody),
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        input:
+          "You are an academic productivity coach for a student dashboard named ScholarHQ. " +
+          "Analyze the student's recent study behavior and class progress. " +
+          "Return only valid JSON with this exact shape: " +
+          '{ "headline": string, "summary": string, "priorities": string[], "risks": string[], "nextSteps": string[] }. ' +
+          "Be concise, practical, encouraging, and specific. " +
+          "Prefer concrete actions tied to classes, recent effort, grades, and upcoming items. " +
+          "Keep each list to at most 4 items and avoid markdown.\n\n" +
+          "Student dashboard data:\n" +
+          JSON.stringify(payload),
+      }),
     });
 
-    let responsePayload = await openAiResponse.json();
-
-    if (shouldRetryWithDefaultModel(openAiResponse, responsePayload, coachRequestBody.model)) {
-      coachRequestBody.model = DEFAULT_OPENAI_MODEL;
-      openAiResponse = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + openAiApiKey,
-        },
-        body: JSON.stringify(coachRequestBody),
-      });
-      responsePayload = await openAiResponse.json();
-    }
+    const responsePayload = await openAiResponse.json();
 
     if (!openAiResponse.ok) {
-      const apiError = getApiErrorMessage(responsePayload, "The OpenAI request failed.");
+      const apiError =
+        responsePayload &&
+        responsePayload.error &&
+        responsePayload.error.message
+          ? responsePayload.error.message
+          : "The OpenAI request failed.";
 
       return {
         statusCode: openAiResponse.status,
@@ -222,8 +178,4 @@ async function handleStudyCoachRequest(request) {
       }),
     };
   }
-}
-
-module.exports = {
-  handleStudyCoachRequest,
 };

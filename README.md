@@ -17,7 +17,7 @@ The core study tracker runs in the browser using HTML, CSS, JavaScript, and `loc
 - Review `Grade vs Study Time` analytics based on study time leading up to assignments and exams
 - Explore summary stats like total study time, average session length, class distribution, and study patterns
 - Use a built-in study timer from the Home page
-- Reserve a Calendar page for future Google Calendar integration
+- Connect Google Calendar with OAuth and sync saved study sessions as calendar events
 
 ## Current Pages
 
@@ -26,7 +26,7 @@ The core study tracker runs in the browser using HTML, CSS, JavaScript, and `loc
 - `Sessions`: add, edit, delete, and sort study sessions
 - `Charts`: weekly time charts and grade-vs-study analytics
 - `Stats`: study breakdowns and performance insights
-- `Calendar`: placeholder for planned calendar sync features
+- `Calendar`: Google OAuth connection status plus saved-session syncing into Google Calendar
 
 ## Key Behaviors
 
@@ -66,18 +66,17 @@ Because this is a static browser app, you can run it very simply. The first scre
 2. Find the index.html file in the project folder once downloaded to your desktop
 3. Right-click to 'Open-with' and select your desired browser
 
-If you prefer, you can also serve it with the same `scholar start` command used on Render:
+If you prefer, you can also serve it with the same Node server used on Render:
 
 ```bash
 npm install
-npm install --global .
-scholar start
+npm start
 ```
 
-You can also use the npm wrapper locally without installing the global command:
+The ScholarHQ command runner also supports the requested command style when the package binary is available:
 
 ```bash
-npm start
+scholar start
 ```
 
 ## Main Files
@@ -87,7 +86,8 @@ npm start
 - `src/styles.css` - visual design, layout, theme, and responsive styling
 - `api/study-coach.js` - Render-hosted AI endpoint for the Home page coach
 - `api/study-plan.js` - Render-hosted AI endpoint for the study planner
-- `server.js` - Node server that serves the static app and AI API routes
+- `api/google-calendar.js` - Google OAuth, token refresh, connection status, and Calendar event creation endpoint
+- `server.js` - Node server that serves the static app and AI/API routes
 - `render.yaml` - Render Blueprint configuration
 
 ## AI Study Coach Setup on Render
@@ -97,30 +97,52 @@ This project now includes AI features on the Home page:
 - `AI Study Coach`
 - `AI Study Plan` with researched topic guidance from your logged assignments and exams
 
-To enable it on Render, create a **Web Service** instead of a Static Site. The AI features need the Node server because the API key must stay server-side.
+To enable it on Render:
 
-### Option A: Use the included Render Blueprint
-
-1. Push this repository to GitHub.
-2. In Render, choose **Blueprints** and connect this repository.
-3. Render will read `render.yaml`, run `npm ci && npm install --global .`, and start the service with `scholar start`.
-4. Add the secret environment variable `SCHOLARHQ_API` in Render and set it to your OpenAI API key. Do not commit the key to this repository.
-5. Leave `OPENAI_MODEL` blank to use the default `gpt-5-mini`, or set it only to a model your OpenAI project can access. If Render still has an older inaccessible model saved, remove `OPENAI_MODEL` or change it to `gpt-5-mini`.
-6. Deploy the service, then open `https://YOUR-SERVICE.onrender.com/healthz`. It should return `{"status":"ok","service":"scholarhq"}`.
-7. Open your Render service URL and use the app from that URL, not from `file://`, so the browser can call `/api/study-coach` and `/api/study-plan`.
-
-### Option B: Create the Render Web Service manually
-
-Use these settings when creating the service:
-
-- **Service type:** Web Service
-- **Runtime:** Node
-- **Build command:** `npm ci && npm install --global .`
-- **Start command:** `scholar start`
-- **Environment variable:** `SCHOLARHQ_API` = your OpenAI API key
-- **Optional environment variable:** `OPENAI_MODEL` = a model your OpenAI project can access. Leave it blank to use `gpt-5-mini`; avoid older models your OpenAI project cannot access.
+1. Create a Render Web Service from this repository, or use the included `render.yaml` Blueprint.
+2. Set the Render environment variable named `SCHOLARHQ_API` to your OpenAI API key. Do not commit the key to this repository.
+3. Optionally add `OPENAI_MODEL` if you want to override the default model (`gpt-4o-mini`).
+4. Use the Node runtime. The included Render Blueprint runs `npm install` and starts the app with `npm start`, which launches the ScholarHQ command runner with `scholar start` behavior.
+5. Redeploy the service after saving environment variables.
 
 The frontend sends your study data to Render API routes at `/api/study-coach` and `/api/study-plan`, and the Render server calls the OpenAI API securely from the server side.
+
+
+## Google Calendar Setup
+
+This project now includes the backend pieces needed for Google Calendar event creation. The frontend Calendar page connects the logged-in ScholarHQ browser account to Google OAuth, checks connection status, and syncs up to five saved study sessions into the user's primary Google Calendar.
+
+After creating your Google Cloud project:
+
+1. Enable the Google Calendar API.
+2. Configure the OAuth consent screen.
+3. Create an OAuth Client ID with type `Web application`.
+4. Add this authorized redirect URI for local development:
+
+```text
+http://localhost:3000/api/google/callback
+```
+
+5. On Render, add the deployed callback URL too, for example:
+
+```text
+https://your-render-service.onrender.com/api/google/callback
+```
+
+6. Add these environment variables locally or in Render:
+
+```bash
+GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/google/callback
+PUBLIC_APP_URL=http://localhost:3000
+GOOGLE_OAUTH_STATE_SECRET=replace-with-a-long-random-string
+GOOGLE_CALENDAR_TIME_ZONE=America/Detroit
+```
+
+The app requests the narrow `https://www.googleapis.com/auth/calendar.events` scope so ScholarHQ can create and update calendar events without full calendar access. OAuth token exchange and event creation stay on the Node backend; do not put Google client secrets in browser code.
+
+For this prototype, Google refresh tokens are saved in `.data/google-calendar-tokens.json`, which is ignored by Git. A production launch should move those tokens into an encrypted database tied to real server-side user accounts.
 
 ## Design Direction
 
