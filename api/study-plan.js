@@ -2,70 +2,6 @@ function getOpenAiApiKey() {
   return process.env.SCHOLARHQ_API || "";
 }
 
-const DEFAULT_OPENAI_MODELS = ["gpt-4.1-mini", "gpt-4.1", "gpt-4o-mini"];
-
-function parseModelList(value) {
-  return String(value || "")
-    .split(",")
-    .map(function (model) {
-      return model.trim();
-    })
-    .filter(Boolean);
-}
-
-function getOpenAiModelCandidates() {
-  const explicitCandidates = parseModelList(process.env.OPENAI_MODEL_CANDIDATES);
-  const preferredModels = parseModelList(process.env.OPENAI_MODEL);
-  const modelList = explicitCandidates.length
-    ? explicitCandidates
-    : preferredModels.concat(DEFAULT_OPENAI_MODELS);
-  const seen = new Set();
-
-  return modelList.filter(function (model) {
-    if (seen.has(model)) {
-      return false;
-    }
-
-    seen.add(model);
-    return true;
-  });
-}
-
-function getOpenAiErrorMessage(responsePayload, responseText) {
-  return responsePayload && responsePayload.error && responsePayload.error.message
-    ? responsePayload.error.message
-    : responseText || "The OpenAI request failed.";
-}
-
-function isRetryableModelAccessError(statusCode, errorMessage) {
-  const normalizedMessage = String(errorMessage || "").toLowerCase();
-
-  return (
-    statusCode === 400 &&
-    (normalizedMessage.includes("does not have access to model") ||
-      normalizedMessage.includes("model_not_found") ||
-      normalizedMessage.includes("model not found") ||
-      normalizedMessage.includes("unsupported model"))
-  );
-}
-
-function buildOpenAiAccessError(modelErrors) {
-  const attemptedModels = modelErrors
-    .map(function (entry) {
-      return entry.model;
-    })
-    .join(", ");
-  const lastError = modelErrors.length ? modelErrors[modelErrors.length - 1].message : "The OpenAI request failed.";
-
-  return (
-    "The configured OpenAI project could not access any attempted ScholarHQ model (" +
-    attemptedModels +
-    "). Last OpenAI error: " +
-    lastError +
-    " This usually means the Render SCHOLARHQ_API key belongs to a project without billing/API credits or without access to those models. Add billing/API credits in OpenAI, or set OPENAI_MODEL_CANDIDATES in Render to a comma-separated list of model IDs your project can use."
-  );
-}
-
 function extractResponseText(payload) {
   if (payload && typeof payload.output_text === "string" && payload.output_text.trim()) {
     return payload.output_text.trim();
@@ -374,55 +310,17 @@ exports.handler = async function (event) {
     const responseText = await openAiResponse.text();
     let responsePayload = null;
 
-    for (const model of getOpenAiModelCandidates()) {
-      const openAiResponse = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + openAiApiKey,
-        },
-        body: JSON.stringify({
-          model: model,
-          tools: [{ type: "web_search" }],
-          tool_choice: "auto",
-          input:
-            "You are an academic study-planning assistant for a student dashboard named ScholarHQ. " +
-            "Combine the AI study planner and roadmap into one very clear formatted answer. " +
-            "Use the student's school, class catalog with course codes, recent study behavior, grades, and workload. " +
-            "When the student provides class codes, assignments, chapters, quizzes, projects, or exams, use web search to research the likely official course/topic context and infer what chapter, topic, methods, vocabulary, or problem types they should study. " +
-            "Return plain text in exactly this labeled format: " +
-            "HEADLINE:, SUMMARY:, FOCUS AREAS:, STUDY BLOCKS:, ROADMAP CHART:, RESEARCHED TOPICS:, TOPIC GUIDANCE:, TIPS:. " +
-            "For the list sections, use bullet points starting with '- '. Do not return JSON. " +
-            "FOCUS AREAS must tell the student what to focus on this coming week or until the next exam. " +
-            "ROADMAP CHART must be a value-stream-map-style list of day-by-day blocks using labels like Monday: Class -> Topic -> Practice -> Review, with arrows. " +
-            "RESEARCHED TOPICS and TOPIC GUIDANCE must cite what class/topic was researched and say what to actually study. " +
-            "Be practical, encouraging, and specific. " +
-            "Keep each list to at most 5 items and avoid markdown tables.\n\n" +
-            "Student dashboard data:\n" +
-            JSON.stringify(payload),
-        }),
-      });
-
-      const responseText = await openAiResponse.text();
+    try {
+      responsePayload = JSON.parse(responseText);
+    } catch (_error) {
       responsePayload = null;
+    }
 
-      try {
-        responsePayload = responseText ? JSON.parse(responseText) : null;
-      } catch (_error) {
-        responsePayload = null;
-      }
-
-      if (openAiResponse.ok) {
-        break;
-      }
-
-      const apiError = getOpenAiErrorMessage(responsePayload, responseText);
-      modelErrors.push({ model: model, message: apiError });
-
-      if (isRetryableModelAccessError(openAiResponse.status, apiError)) {
-        responsePayload = null;
-        continue;
-      }
+    if (!openAiResponse.ok) {
+      const apiError =
+        responsePayload && responsePayload.error && responsePayload.error.message
+          ? responsePayload.error.message
+          : responseText || "The OpenAI request failed.";
 
       return {
         statusCode: openAiResponse.status,
@@ -430,16 +328,6 @@ exports.handler = async function (event) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ error: apiError }),
-      };
-    }
-
-    if (!responsePayload && modelErrors.length) {
-      return {
-        statusCode: 500,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ error: buildOpenAiAccessError(modelErrors) }),
       };
     }
 
