@@ -47,19 +47,6 @@
   ];
   const VALID_PAGE_KEYS = new Set(PAGE_DEFINITIONS.map(function (page) { return page.key; }));
 
-  function getPageFromHash() {
-    const hashPage = String(window.location.hash || "").replace(/^#/, "").trim();
-    return VALID_PAGE_KEYS.has(hashPage) ? hashPage : "";
-  }
-
-  function setPageHash(pageKey) {
-    if (!VALID_PAGE_KEYS.has(pageKey) || window.location.hash === "#" + pageKey) {
-      return;
-    }
-
-    window.location.hash = pageKey;
-  }
-
   // Main HTML mount point where the whole app is drawn.
   const appRoot = document.querySelector("#app");
 
@@ -224,7 +211,7 @@
     state.errors = {};
     state.editingId = null;
     state.selectedClass = null;
-    state.currentPage = getPageFromHash() || "home";
+    state.currentPage = "home";
   }
 
   function normalizeSession(session) {
@@ -1179,7 +1166,6 @@
     } catch (error) {
       const isFileProtocol = window.location.protocol === "file:";
       state.aiCoach.error = isFileProtocol
-        ? "AI Study Coach needs the Render server running. Open the project through Render or run `scholar start` locally to use it."
         ? "AI Study Coach needs the Render server running. Open the project through Render or run `npm start` locally to use it."
         : (error && error.message) || "The AI coach could not generate advice right now.";
     } finally {
@@ -1229,7 +1215,6 @@
     } catch (error) {
       const isFileProtocol = window.location.protocol === "file:";
       state.aiPlan.error = isFileProtocol
-        ? "AI Study Plan needs the Render server running. Open the project through Render or run `scholar start` locally to use it."
         ? "AI Study Plan needs the Render server running. Open the project through Render or run `npm start` locally to use it."
         : (error && error.message) || "The AI study plan could not be generated right now.";
     } finally {
@@ -1496,15 +1481,14 @@
           ${PAGE_DEFINITIONS
             .map(function (page) {
               return `
-                <a
+                <button
                   class="${currentPage === page.key ? "nav-link active" : "nav-link"}"
-                  href="#${page.key}"
                   type="button"
                   data-action="${page.action || "navigate"}"
                   data-page="${page.key}"
                 >
                   ${page.label}
-                </a>
+                </button>
               `;
             })
             .join("")}
@@ -3325,7 +3309,7 @@
     draft: blankDraft(),
     errors: {},
     editingId: null,
-    currentPage: getPageFromHash() || "home",
+    currentPage: "home",
     selectedClass: null,
     analyticsTab: "time",
     editingClassGrade: null,
@@ -3580,9 +3564,6 @@
     saveSessions(state.sessions);
   }
 
-  function navigateToPage(pageKey, options) {
-    const nextPage = VALID_PAGE_KEYS.has(pageKey) ? pageKey : "home";
-    const shouldUpdateHash = !options || options.updateHash !== false;
   function navigateToPage(pageKey) {
     const nextPage = VALID_PAGE_KEYS.has(pageKey) ? pageKey : "home";
 
@@ -3590,10 +3571,6 @@
 
     if (nextPage !== "classes") {
       state.selectedClass = null;
-    }
-
-    if (shouldUpdateHash) {
-      setPageHash(nextPage);
     }
 
     render();
@@ -3640,11 +3617,6 @@
       );
     } else if (state.currentPage === "stats") {
       pageContent = renderStatsPage(state.sessions);
-    } else if (state.currentPage === "calendar") {
-      pageContent = renderCalendarPage();
-    } else {
-      state.currentPage = "home";
-      pageContent = renderHomePage(state.sessions, state.timer);
     } else {
       pageContent = renderCalendarPage(state.calendar, state.sessions);
     }
@@ -3923,14 +3895,6 @@
     }
 
     if (action === "navigate" && target.dataset.page) {
-      event.preventDefault();
-      navigateToPage(target.dataset.page);
-      return;
-    }
-
-    if (action === "open-calendar") {
-      event.preventDefault();
-      navigateToPage("calendar");
       state.currentPage = target.dataset.page;
       if (target.dataset.page !== "classes") {
         state.selectedClass = null;
@@ -4261,16 +4225,6 @@
       render();
     }
   });
-
-  if (typeof window.addEventListener === "function") {
-    window.addEventListener("hashchange", function () {
-      const hashPage = getPageFromHash();
-
-      if (hashPage && state.currentUser && hashPage !== state.currentPage) {
-        navigateToPage(hashPage, { updateHash: false });
-      }
-    });
-  }
 
   window.setInterval(function () {
     if (!state.timer.isRunning) {
