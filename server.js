@@ -5,6 +5,12 @@ const { URL } = require("url");
 
 const { handler: studyCoachHandler } = require("./api/study-coach");
 const { handler: studyPlanHandler } = require("./api/study-plan");
+const {
+  handleGoogleCallback,
+  handleGoogleConnect,
+  handleGoogleEvents,
+  handleGoogleStatus,
+} = require("./api/google-calendar");
 
 const rootDir = __dirname;
 const port = Number(process.env.PORT || 3000);
@@ -12,6 +18,10 @@ const port = Number(process.env.PORT || 3000);
 const apiHandlers = {
   "/api/study-coach": studyCoachHandler,
   "/api/study-plan": studyPlanHandler,
+  "/api/google/connect": handleGoogleConnect,
+  "/api/google/callback": handleGoogleCallback,
+  "/api/google/status": handleGoogleStatus,
+  "/api/google/events": handleGoogleEvents,
 };
 
 const mimeTypes = {
@@ -67,6 +77,7 @@ async function handleApiRequest(req, res, handler) {
     const result = await handler({
       httpMethod: req.method,
       headers: req.headers,
+      queryStringParameters: Object.fromEntries(new URL(req.url || "/", "http://localhost").searchParams.entries()),
       body: body,
     });
 

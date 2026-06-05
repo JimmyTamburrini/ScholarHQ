@@ -17,7 +17,7 @@ The core study tracker runs in the browser using HTML, CSS, JavaScript, and `loc
 - Review `Grade vs Study Time` analytics based on study time leading up to assignments and exams
 - Explore summary stats like total study time, average session length, class distribution, and study patterns
 - Use a built-in study timer from the Home page
-- Reserve a Calendar page for future Google Calendar integration
+- Connect Google Calendar with OAuth and sync saved study sessions as calendar events
 
 ## Current Pages
 
@@ -26,7 +26,7 @@ The core study tracker runs in the browser using HTML, CSS, JavaScript, and `loc
 - `Sessions`: add, edit, delete, and sort study sessions
 - `Charts`: weekly time charts and grade-vs-study analytics
 - `Stats`: study breakdowns and performance insights
-- `Calendar`: placeholder for planned calendar sync features
+- `Calendar`: Google OAuth connection status plus saved-session syncing into Google Calendar
 
 ## Key Behaviors
 
@@ -86,7 +86,8 @@ scholar start
 - `src/styles.css` - visual design, layout, theme, and responsive styling
 - `api/study-coach.js` - Render-hosted AI endpoint for the Home page coach
 - `api/study-plan.js` - Render-hosted AI endpoint for the study planner
-- `server.js` - Node server that serves the static app and AI API routes
+- `api/google-calendar.js` - Google OAuth, token refresh, connection status, and Calendar event creation endpoint
+- `server.js` - Node server that serves the static app and AI/API routes
 - `render.yaml` - Render Blueprint configuration
 
 ## AI Study Coach Setup on Render
@@ -105,6 +106,43 @@ To enable it on Render:
 5. Redeploy the service after saving environment variables.
 
 The frontend sends your study data to Render API routes at `/api/study-coach` and `/api/study-plan`, and the Render server calls the OpenAI API securely from the server side.
+
+
+## Google Calendar Setup
+
+This project now includes the backend pieces needed for Google Calendar event creation. The frontend Calendar page connects the logged-in ScholarHQ browser account to Google OAuth, checks connection status, and syncs up to five saved study sessions into the user's primary Google Calendar.
+
+After creating your Google Cloud project:
+
+1. Enable the Google Calendar API.
+2. Configure the OAuth consent screen.
+3. Create an OAuth Client ID with type `Web application`.
+4. Add this authorized redirect URI for local development:
+
+```text
+http://localhost:3000/api/google/callback
+```
+
+5. On Render, add the deployed callback URL too, for example:
+
+```text
+https://your-render-service.onrender.com/api/google/callback
+```
+
+6. Add these environment variables locally or in Render:
+
+```bash
+GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/google/callback
+PUBLIC_APP_URL=http://localhost:3000
+GOOGLE_OAUTH_STATE_SECRET=replace-with-a-long-random-string
+GOOGLE_CALENDAR_TIME_ZONE=America/Detroit
+```
+
+The app requests the narrow `https://www.googleapis.com/auth/calendar.events` scope so ScholarHQ can create and update calendar events without full calendar access. OAuth token exchange and event creation stay on the Node backend; do not put Google client secrets in browser code.
+
+For this prototype, Google refresh tokens are saved in `.data/google-calendar-tokens.json`, which is ignored by Git. A production launch should move those tokens into an encrypted database tied to real server-side user accounts.
 
 ## Design Direction
 
