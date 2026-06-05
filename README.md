@@ -100,7 +100,7 @@ To enable it on Render:
 
 1. Create a Render Web Service from this repository, or use the included `render.yaml` Blueprint.
 2. Set the Render environment variable named `SCHOLARHQ_API` to your OpenAI API key. Do not commit the key to this repository.
-3. Optionally add `OPENAI_MODEL` to try one preferred model first, or `OPENAI_MODEL_CANDIDATES` to override the full fallback order with a comma-separated list of model IDs your OpenAI project can access. If your OpenAI error says the project does not have access to a model, confirm the API key is from a project with billing/API credits and model access in the OpenAI dashboard.
+3. Optionally add `OPENAI_MODEL` if you want to override the default model (`gpt-4o-mini`).
 4. Use the Node runtime. The included Render Blueprint runs `npm install` and starts the app with `npm start`, which launches the ScholarHQ command runner with `scholar start` behavior.
 5. Redeploy the service after saving environment variables.
 

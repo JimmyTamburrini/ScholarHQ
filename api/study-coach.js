@@ -180,39 +180,26 @@ exports.handler = async function (event) {
       };
     }
 
-    const modelErrors = [];
-    let responsePayload = null;
-
-    for (const model of getOpenAiModelCandidates()) {
-      const openAiResponse = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + openAiApiKey,
-        },
-        body: JSON.stringify({
-          model: model,
-          input:
-            "You are an academic productivity coach for a student dashboard named ScholarHQ. " +
-            "Analyze the student's recent study behavior and class progress. " +
-            "Return only valid JSON with this exact shape: " +
-            '{ "headline": string, "summary": string, "priorities": string[], "risks": string[], "nextSteps": string[] }. ' +
-            "Be concise, practical, encouraging, and specific. " +
-            "Prefer concrete actions tied to classes, recent effort, grades, and upcoming items. " +
-            "Keep each list to at most 4 items and avoid markdown.\n\n" +
-            "Student dashboard data:\n" +
-            JSON.stringify(payload),
-        }),
-      });
-
-      const responseText = await openAiResponse.text();
-      responsePayload = null;
-
-      try {
-        responsePayload = responseText ? JSON.parse(responseText) : {};
-      } catch (_error) {
-        responsePayload = null;
-      }
+    const openAiResponse = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + openAiApiKey,
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        input:
+          "You are an academic productivity coach for a student dashboard named ScholarHQ. " +
+          "Analyze the student's recent study behavior and class progress. " +
+          "Return only valid JSON with this exact shape: " +
+          '{ "headline": string, "summary": string, "priorities": string[], "risks": string[], "nextSteps": string[] }. ' +
+          "Be concise, practical, encouraging, and specific. " +
+          "Prefer concrete actions tied to classes, recent effort, grades, and upcoming items. " +
+          "Keep each list to at most 4 items and avoid markdown.\n\n" +
+          "Student dashboard data:\n" +
+          JSON.stringify(payload),
+      }),
+    });
 
       if (openAiResponse.ok) {
         break;
