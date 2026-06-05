@@ -37,6 +37,29 @@
   const CLASS_CATALOG_STORAGE_KEY = "study-tracker-class-catalog";
   const AUTH_ACCOUNTS_KEY = "scholarhq-auth-accounts";
   const AUTH_SESSION_KEY = "scholarhq-auth-session";
+  const PAGE_DEFINITIONS = [
+    { key: "home", label: "Home" },
+    { key: "classes", label: "Classes" },
+    { key: "sessions", label: "Sessions" },
+    { key: "analytics", label: "Charts" },
+    { key: "stats", label: "Stats" },
+    { key: "calendar", label: "Calendar", action: "open-calendar" },
+  ];
+  const VALID_PAGE_KEYS = new Set(PAGE_DEFINITIONS.map(function (page) { return page.key; }));
+
+  function getPageFromHash() {
+    const hashPage = String(window.location.hash || "").replace(/^#/, "").trim();
+    return VALID_PAGE_KEYS.has(hashPage) ? hashPage : "";
+  }
+
+  function setPageHash(pageKey) {
+    if (!VALID_PAGE_KEYS.has(pageKey) || window.location.hash === "#" + pageKey) {
+      return;
+    }
+
+    window.location.hash = pageKey;
+  }
+
   // Main HTML mount point where the whole app is drawn.
   const appRoot = document.querySelector("#app");
 
@@ -201,7 +224,7 @@
     state.errors = {};
     state.editingId = null;
     state.selectedClass = null;
-    state.currentPage = "home";
+    state.currentPage = getPageFromHash() || "home";
   }
 
   function normalizeSession(session) {
@@ -1134,7 +1157,7 @@
     render();
 
     try {
-      const response = await window.fetch("/.netlify/functions/study-coach", {
+      const response = await window.fetch("/api/study-coach", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1156,7 +1179,7 @@
     } catch (error) {
       const isFileProtocol = window.location.protocol === "file:";
       state.aiCoach.error = isFileProtocol
-        ? "AI Study Coach needs a deployed site or local server with the Netlify function enabled. Open the project through Netlify or a local Netlify dev server to use it."
+        ? "AI Study Coach needs the Render server running. Open the project through Render or run `scholar start` locally to use it."
         : (error && error.message) || "The AI coach could not generate advice right now.";
     } finally {
       state.aiCoach.loading = false;
@@ -1174,7 +1197,7 @@
     render();
 
     try {
-      const response = await window.fetch("/.netlify/functions/study-plan", {
+      const response = await window.fetch("/api/study-plan", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1205,7 +1228,7 @@
     } catch (error) {
       const isFileProtocol = window.location.protocol === "file:";
       state.aiPlan.error = isFileProtocol
-        ? "AI Study Plan needs a deployed site or local server with the Netlify function enabled. Open the project through Netlify or a local Netlify dev server to use it."
+        ? "AI Study Plan needs the Render server running. Open the project through Render or run `scholar start` locally to use it."
         : (error && error.message) || "The AI study plan could not be generated right now.";
     } finally {
       state.aiPlan.loading = false;
@@ -1331,15 +1354,6 @@
 
   // Top navigation renderer. Add/remove pages here to change the main tabs.
   function renderNavigation(currentPage, currentUser) {
-    const pages = [
-      { key: "home", label: "Home" },
-      { key: "classes", label: "Classes" },
-      { key: "sessions", label: "Sessions" },
-      { key: "analytics", label: "Charts" },
-      { key: "stats", label: "Stats" },
-      { key: "calendar", label: "Calendar" },
-    ];
-
     return `
       <nav class="site-nav" aria-label="Primary navigation">
         <div class="brand-block">
@@ -1351,17 +1365,17 @@
           <button class="ghost-button compact" type="button" data-action="logout">Log out</button>
         </div>
         <div class="nav-links">
-          ${pages
+          ${PAGE_DEFINITIONS
             .map(function (page) {
               return `
-                <button
+                <a
                   class="${currentPage === page.key ? "nav-link active" : "nav-link"}"
-                  type="button"
-                  data-action="navigate"
+                  href="#${page.key}"
+                  data-action="${page.action || "navigate"}"
                   data-page="${page.key}"
                 >
                   ${page.label}
-                </button>
+                </a>
               `;
             })
             .join("")}
@@ -3131,7 +3145,7 @@
     draft: blankDraft(),
     errors: {},
     editingId: null,
-    currentPage: "home",
+    currentPage: getPageFromHash() || "home",
     selectedClass: null,
     analyticsTab: "time",
     editingClassGrade: null,
@@ -3377,6 +3391,23 @@
     saveSessions(state.sessions);
   }
 
+  function navigateToPage(pageKey, options) {
+    const nextPage = VALID_PAGE_KEYS.has(pageKey) ? pageKey : "home";
+    const shouldUpdateHash = !options || options.updateHash !== false;
+
+    state.currentPage = nextPage;
+
+    if (nextPage !== "classes") {
+      state.selectedClass = null;
+    }
+
+    if (shouldUpdateHash) {
+      setPageHash(nextPage);
+    }
+
+    render();
+  }
+
   // MAIN RENDER FUNCTION
   // Whenever state changes, this function rebuilds the current page.
   // Main render function. Rebuilds the currently selected page from app state.
@@ -3418,8 +3449,11 @@
       );
     } else if (state.currentPage === "stats") {
       pageContent = renderStatsPage(state.sessions);
-    } else {
+    } else if (state.currentPage === "calendar") {
       pageContent = renderCalendarPage();
+    } else {
+      state.currentPage = "home";
+      pageContent = renderHomePage(state.sessions, state.timer);
     }
 
     appRoot.innerHTML = `
@@ -3687,11 +3721,14 @@
     }
 
     if (action === "navigate" && target.dataset.page) {
-      state.currentPage = target.dataset.page;
-      if (target.dataset.page !== "classes") {
-        state.selectedClass = null;
-      }
-      render();
+      event.preventDefault();
+      navigateToPage(target.dataset.page);
+      return;
+    }
+
+    if (action === "open-calendar") {
+      event.preventDefault();
+      navigateToPage("calendar");
       return;
     }
 
@@ -3929,18 +3966,23 @@
 
   // STARTUP / EVENT WIRING
   // These listeners connect the rendered HTML back to the JavaScript logic.
+  const handledFormIds = new Set([
+    "auth-form",
+    "profile-setup-form",
+    "class-catalog-form",
+    "session-form",
+    "grade-form",
+    "class-grade-form",
+  ]);
+
   appRoot.addEventListener("submit", function (event) {
-    if (
-      event.target instanceof HTMLFormElement &&
-      (
-        event.target.id === "auth-form" ||
-        event.target.id === "session-form" ||
-        event.target.id === "grade-form" ||
-        event.target.id === "class-grade-form"
-      )
-    ) {
-      handleSubmit(event.target, event);
+    const form = event.target;
+
+    if (!(form instanceof HTMLFormElement) || !handledFormIds.has(form.id)) {
+      return;
     }
+
+    handleSubmit(form, event);
   });
 
   appRoot.addEventListener("click", handleClick);
@@ -3994,6 +4036,16 @@
       render();
     }
   });
+
+  if (typeof window.addEventListener === "function") {
+    window.addEventListener("hashchange", function () {
+      const hashPage = getPageFromHash();
+
+      if (hashPage && state.currentUser && hashPage !== state.currentPage) {
+        navigateToPage(hashPage, { updateHash: false });
+      }
+    });
+  }
 
   window.setInterval(function () {
     if (!state.timer.isRunning) {
