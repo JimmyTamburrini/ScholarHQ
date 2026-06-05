@@ -290,6 +290,9 @@ body::before {
   border: 1px solid transparent;
   border-radius: 999px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }
 
 /* Highlighted current page link in the top navigation. */
