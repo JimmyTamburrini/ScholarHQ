@@ -5,8 +5,11 @@ services:
     plan: free
     buildCommand: npm ci && npm install --global .
     startCommand: scholar start
+    buildCommand: npm install
+    startCommand: npm start
     envVars:
       - key: SCHOLARHQ_API
         sync: false
       - key: OPENAI_MODEL
         value: gpt-5-mini
+        value: gpt-4o-mini

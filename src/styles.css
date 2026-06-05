@@ -1676,6 +1676,45 @@ button:hover {
   font-size: 1.45rem;
   line-height: 1;
 }
+
+/* Google Calendar connection workspace. */
+.calendar-grid {
+  align-items: start;
+}
+
+.calendar-sync-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.calendar-actions {
+  margin-top: 4px;
+}
+
+.calendar-preview {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.calendar-preview-item {
+  display: grid;
+  gap: 6px;
+}
+
+.calendar-preview-item strong {
+  color: var(--text);
+}
+
+.calendar-preview-item span {
+  color: var(--muted);
+}
+
+.calendar-success {
+  border-color: rgba(107, 142, 92, 0.34);
+  background: rgba(58, 74, 50, 0.18);
+}
+
 /* ==================== 13. COPY/PASTE COLOR TABLE ====================
 
   Use this table when you want to change a color quickly:

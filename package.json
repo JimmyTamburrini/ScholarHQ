@@ -11,6 +11,7 @@
     "start": "node ./bin/scholar.js start",
     "scholar": "node ./bin/scholar.js",
     "check": "node --check server.js && node --check bin/scholar.js && node --check api/study-coach.js && node --check api/study-plan.js && node --check src/app.bundle.js"
+    "check": "node --check server.js && node --check bin/scholar.js && node --check api/study-coach.js && node --check api/study-plan.js && node --check api/google-calendar.js && node --check src/app.bundle.js"
   },
   "engines": {
     "node": ">=18"

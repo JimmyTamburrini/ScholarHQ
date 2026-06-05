@@ -13,6 +13,25 @@ const host = process.env.HOST || "0.0.0.0";
 const apiHandlers = {
   "/api/study-coach": handleStudyCoachRequest,
   "/api/study-plan": handleStudyPlanRequest,
+const { handler: studyCoachHandler } = require("./api/study-coach");
+const { handler: studyPlanHandler } = require("./api/study-plan");
+const {
+  handleGoogleCallback,
+  handleGoogleConnect,
+  handleGoogleEvents,
+  handleGoogleStatus,
+} = require("./api/google-calendar");
+
+const rootDir = __dirname;
+const port = Number(process.env.PORT || 3000);
+
+const apiHandlers = {
+  "/api/study-coach": studyCoachHandler,
+  "/api/study-plan": studyPlanHandler,
+  "/api/google/connect": handleGoogleConnect,
+  "/api/google/callback": handleGoogleCallback,
+  "/api/google/status": handleGoogleStatus,
+  "/api/google/events": handleGoogleEvents,
 };
 
 const mimeTypes = {
@@ -68,6 +87,9 @@ async function handleApiRequest(req, res, handler) {
     const result = await handler({
       method: req.method,
       headers: req.headers,
+      httpMethod: req.method,
+      headers: req.headers,
+      queryStringParameters: Object.fromEntries(new URL(req.url || "/", "http://localhost").searchParams.entries()),
       body: body,
     });
 
@@ -160,6 +182,8 @@ function startServer() {
 
   server.listen(port, host, function () {
     console.log(`ScholarHQ is running on ${host}:${port}.`);
+  server.listen(port, function () {
+    console.log(`ScholarHQ is running on port ${port}.`);
   });
 
   return server;
