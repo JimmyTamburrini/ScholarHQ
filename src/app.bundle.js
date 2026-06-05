@@ -1180,6 +1180,7 @@
       const isFileProtocol = window.location.protocol === "file:";
       state.aiCoach.error = isFileProtocol
         ? "AI Study Coach needs the Render server running. Open the project through Render or run `scholar start` locally to use it."
+        ? "AI Study Coach needs the Render server running. Open the project through Render or run `npm start` locally to use it."
         : (error && error.message) || "The AI coach could not generate advice right now.";
     } finally {
       state.aiCoach.loading = false;
@@ -1229,11 +1230,138 @@
       const isFileProtocol = window.location.protocol === "file:";
       state.aiPlan.error = isFileProtocol
         ? "AI Study Plan needs the Render server running. Open the project through Render or run `scholar start` locally to use it."
+        ? "AI Study Plan needs the Render server running. Open the project through Render or run `npm start` locally to use it."
         : (error && error.message) || "The AI study plan could not be generated right now.";
     } finally {
       state.aiPlan.loading = false;
       render();
     }
+  }
+
+
+  function buildCalendarSyncSessions() {
+    return state.sessions
+      .slice()
+      .sort(function (a, b) {
+        return new Date(a.date) - new Date(b.date);
+      })
+      .slice(0, 5);
+  }
+
+  function connectGoogleCalendar() {
+    if (!state.currentUser || !state.currentUser.id) {
+      state.calendar.error = "Sign in before connecting Google Calendar.";
+      render();
+      return;
+    }
+
+    window.location.href = `/api/google/connect?userId=${encodeURIComponent(state.currentUser.id)}`;
+  }
+
+  async function requestCalendarStatus() {
+    if (!state.currentUser || !state.currentUser.id || state.calendar.loading) {
+      return;
+    }
+
+    state.calendar.loading = true;
+    state.calendar.error = "";
+    render();
+
+    try {
+      const response = await window.fetch(`/api/google/status?userId=${encodeURIComponent(state.currentUser.id)}`);
+      const payload = await response.json().catch(function () {
+        return {};
+      });
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Calendar status could not be checked.");
+      }
+
+      state.calendar.connected = Boolean(payload.connected);
+      state.calendar.connectedAt = payload.connectedAt || "";
+      state.calendar.error = "";
+    } catch (error) {
+      const isFileProtocol = window.location.protocol === "file:";
+      state.calendar.error = isFileProtocol
+        ? "Google Calendar needs the Render/Node server running. Use `npm start` locally or open the deployed Render site."
+        : (error && error.message) || "Calendar status could not be checked.";
+    } finally {
+      state.calendar.loading = false;
+      render();
+    }
+  }
+
+  async function syncGoogleCalendarSessions() {
+    if (!state.currentUser || !state.currentUser.id || state.calendar.syncing) {
+      return;
+    }
+
+    const sessionsToSync = buildCalendarSyncSessions();
+    if (!sessionsToSync.length) {
+      state.calendar.error = "Log at least one study session before syncing Google Calendar.";
+      render();
+      return;
+    }
+
+    state.calendar.syncing = true;
+    state.calendar.error = "";
+    state.calendar.message = "";
+    render();
+
+    try {
+      const response = await window.fetch("/api/google/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: state.currentUser.id,
+          sessions: sessionsToSync,
+        }),
+      });
+      const payload = await response.json().catch(function () {
+        return {};
+      });
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Google Calendar sync failed.");
+      }
+
+      const count = Array.isArray(payload.createdEvents) ? payload.createdEvents.length : 0;
+      state.calendar.connected = true;
+      state.calendar.lastSyncedAt = new Date().toISOString();
+      state.calendar.message = `${count} study session${count === 1 ? "" : "s"} added to Google Calendar.`;
+      state.calendar.error = "";
+    } catch (error) {
+      state.calendar.error = (error && error.message) || "Google Calendar sync failed.";
+    } finally {
+      state.calendar.syncing = false;
+      render();
+    }
+  }
+
+  function handleCalendarRedirectMessage() {
+    if (!window.URLSearchParams) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search || "");
+    const calendarResult = params.get("calendar");
+    if (!calendarResult) {
+      return;
+    }
+
+    state.currentPage = "calendar";
+    if (calendarResult === "connected") {
+      state.calendar.connected = true;
+      state.calendar.message = "Google Calendar connected. You can now sync saved study sessions.";
+      state.calendar.error = "";
+    } else if (calendarResult === "error") {
+      state.calendar.error = params.get("message") || "Google Calendar could not connect.";
+      state.calendar.message = "";
+    }
+
+    window.history.replaceState({}, document.title, window.location.pathname);
   }
 
 
@@ -1371,6 +1499,7 @@
                 <a
                   class="${currentPage === page.key ? "nav-link active" : "nav-link"}"
                   href="#${page.key}"
+                  type="button"
                   data-action="${page.action || "navigate"}"
                   data-page="${page.key}"
                 >
@@ -2375,61 +2504,112 @@
     `;
   }
 
-  function renderCalendarPage() {
+  function renderCalendarPage(calendarState, sessions) {
+    const connected = Boolean(calendarState.connected);
+    const recentSessions = sessions
+      .slice()
+      .sort(function (a, b) {
+        return new Date(a.date) - new Date(b.date);
+      })
+      .slice(0, 5);
+
     return `
       <section class="page-intro compact">
         <div>
           <p class="eyebrow">Calendar Hub</p>
-          <h1>Plan, sync, and compare your study schedule.</h1>
+          <h1>Send ScholarHQ study blocks to Google Calendar.</h1>
         </div>
         <p class="hero-text">
-          This page is the future home for your Google Calendar connection, where planned study blocks and real study sessions can work together.
+          Connect your Google Calendar, then sync saved study sessions as calendar events. AI-generated study plans can use this same backend route when you are ready to turn planner blocks into scheduled events.
         </p>
       </section>
 
-      <section class="home-grid">
+      <section class="home-grid calendar-grid">
         <article class="panel feature-panel">
           <div class="panel-header">
             <div>
-              <p class="eyebrow">Planned Integration</p>
-              <h2>Google Calendar Two-Way Sync</h2>
+              <p class="eyebrow">Google Calendar API</p>
+              <h2>How this connection works</h2>
             </div>
-            <p class="panel-copy">This is reserved for the future full web app version with secure Google sign-in and sync.</p>
+            <p class="panel-copy">ScholarHQ sends you through Google OAuth, saves refresh tokens on the server, and creates events from the backend so browser code never sees your Google client secret.</p>
           </div>
 
           <div class="feature-list">
             <div class="feature-item">
-              <strong>Read your calendar</strong>
-              <p>See upcoming classes, deadlines, exams, and study blocks inside ScholarHQ.</p>
+              <strong>1. Connect</strong>
+              <p>Use the Google Cloud OAuth client you created and authorize the Calendar Events scope.</p>
             </div>
             <div class="feature-item">
-              <strong>Create and update events</strong>
-              <p>Turn study plans into real Google Calendar events and update them when your schedule changes.</p>
+              <strong>2. Generate or log sessions</strong>
+              <p>Study sessions already saved in ScholarHQ become the event payload Google Calendar expects.</p>
             </div>
             <div class="feature-item">
-              <strong>Compare planned vs actual</strong>
-              <p>Match your scheduled study blocks against the sessions you actually log in the app.</p>
+              <strong>3. Sync events</strong>
+              <p>The server refreshes your Google access token when needed and inserts events into your primary calendar.</p>
             </div>
           </div>
         </article>
 
-        <article class="panel">
+        <article class="panel calendar-sync-panel">
           <div class="panel-header">
             <div>
               <p class="eyebrow">Connection Status</p>
-              <h2>Calendar Not Connected</h2>
+              <h2>${connected ? "Calendar Connected" : "Calendar Not Connected"}</h2>
             </div>
-            <p class="panel-copy">Two-way sync will require a secure backend and Google OAuth before this can be activated.</p>
+            <p class="panel-copy">${connected ? "You can now push saved ScholarHQ sessions into your primary Google Calendar." : "Add your Google OAuth credentials to the server, then connect this ScholarHQ account."}</p>
           </div>
 
-          <div class="empty-state">
-            <h3>Future sync workspace</h3>
-            <p>This page is now built into the site so the calendar system has a dedicated place when we implement the real integration.</p>
+          <div class="coach-status-row">
+            <div class="coach-chip">
+              <span class="insight-label">Google OAuth</span>
+              <strong>${calendarState.loading ? "Checking" : connected ? "Connected" : "Not connected"}</strong>
+            </div>
+            <div class="coach-chip">
+              <span class="insight-label">Last Sync</span>
+              <strong>${calendarState.lastSyncedAt ? escapeHtml(formatCoachTimestamp(calendarState.lastSyncedAt)) : "Not yet"}</strong>
+            </div>
           </div>
 
-          <div class="form-actions">
-            <button class="primary-button" type="button" disabled>Connect Google Calendar</button>
-            <button class="secondary-button" type="button" disabled>Sync Study Blocks</button>
+          ${
+            calendarState.error
+              ? `<div class="coach-alert">${escapeHtml(calendarState.error)}</div>`
+              : ""
+          }
+
+          ${
+            calendarState.message
+              ? `<div class="coach-summary-card calendar-success"><p>${escapeHtml(calendarState.message)}</p></div>`
+              : ""
+          }
+
+          <div class="form-actions calendar-actions">
+            <button class="primary-button" type="button" data-action="connect-google-calendar">
+              ${connected ? "Reconnect Google Calendar" : "Connect Google Calendar"}
+            </button>
+            <button class="secondary-button" type="button" data-action="refresh-google-calendar-status" ${calendarState.loading ? "disabled" : ""}>
+              ${calendarState.loading ? "Checking..." : "Refresh Status"}
+            </button>
+            <button class="secondary-button" type="button" data-action="sync-google-calendar" ${!connected || calendarState.syncing || !recentSessions.length ? "disabled" : ""}>
+              ${calendarState.syncing ? "Syncing..." : "Sync Saved Sessions"}
+            </button>
+          </div>
+
+          <div class="calendar-preview">
+            <p class="eyebrow">Ready To Sync</p>
+            ${
+              recentSessions.length
+                ? `<div class="coach-list">
+                    ${recentSessions
+                      .map(function (session) {
+                        return `<div class="coach-list-item calendar-preview-item">
+                          <strong>${escapeHtml(session.subject)}</strong>
+                          <span>${escapeHtml(formatDisplayDate(session.date))} • ${escapeHtml(formatMinutes(session.durationMinutes))}</span>
+                        </div>`;
+                      })
+                      .join("")}
+                  </div>`
+                : `<div class="empty-state compact-empty-state"><h3>No sessions yet</h3><p>Log study sessions first, then come back here to sync them into Google Calendar.</p></div>`
+            }
           </div>
         </article>
       </section>
@@ -3179,6 +3359,15 @@
       result: null,
       lastUpdated: "",
     },
+    calendar: {
+      loading: false,
+      syncing: false,
+      connected: false,
+      connectedAt: "",
+      lastSyncedAt: "",
+      error: "",
+      message: "",
+    },
     flashMessage: "",
     flashTimeoutId: null,
   };
@@ -3394,6 +3583,8 @@
   function navigateToPage(pageKey, options) {
     const nextPage = VALID_PAGE_KEYS.has(pageKey) ? pageKey : "home";
     const shouldUpdateHash = !options || options.updateHash !== false;
+  function navigateToPage(pageKey) {
+    const nextPage = VALID_PAGE_KEYS.has(pageKey) ? pageKey : "home";
 
     state.currentPage = nextPage;
 
@@ -3454,6 +3645,8 @@
     } else {
       state.currentPage = "home";
       pageContent = renderHomePage(state.sessions, state.timer);
+    } else {
+      pageContent = renderCalendarPage(state.calendar, state.sessions);
     }
 
     appRoot.innerHTML = `
@@ -3714,6 +3907,15 @@
       state.grades = [];
       state.classGradebooks = {};
       state.classCatalog = [];
+      state.calendar = {
+        loading: false,
+        syncing: false,
+        connected: false,
+        connectedAt: "",
+        lastSyncedAt: "",
+        error: "",
+        message: "",
+      };
       state.timer.isRunning = false;
       state.currentPage = "home";
       render();
@@ -3729,6 +3931,14 @@
     if (action === "open-calendar") {
       event.preventDefault();
       navigateToPage("calendar");
+      state.currentPage = target.dataset.page;
+      if (target.dataset.page !== "classes") {
+        state.selectedClass = null;
+      }
+      render();
+      if (target.dataset.page === "calendar") {
+        requestCalendarStatus();
+      }
       return;
     }
 
@@ -3766,6 +3976,21 @@
 
     if (action === "generate-ai-plan") {
       requestAiPlan();
+      return;
+    }
+
+    if (action === "connect-google-calendar") {
+      connectGoogleCalendar();
+      return;
+    }
+
+    if (action === "refresh-google-calendar-status") {
+      requestCalendarStatus();
+      return;
+    }
+
+    if (action === "sync-google-calendar") {
+      syncGoogleCalendarSessions();
       return;
     }
 
@@ -4059,6 +4284,10 @@
     }
   }, 1000);
 
+  handleCalendarRedirectMessage();
   render();
+  if (state.currentPage === "calendar" && state.currentUser) {
+    requestCalendarStatus();
+  }
   document.title = "ScholarHQ";
 })();
