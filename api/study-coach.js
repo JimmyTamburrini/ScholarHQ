@@ -123,7 +123,7 @@ exports.handler = async function (event) {
         Authorization: "Bearer " + openAiApiKey,
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-5-mini",
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
         input:
           "You are an academic productivity coach for a student dashboard named ScholarHQ. " +
           "Analyze the student's recent study behavior and class progress. " +
