@@ -37,6 +37,16 @@
   const CLASS_CATALOG_STORAGE_KEY = "study-tracker-class-catalog";
   const AUTH_ACCOUNTS_KEY = "scholarhq-auth-accounts";
   const AUTH_SESSION_KEY = "scholarhq-auth-session";
+  const PAGE_DEFINITIONS = [
+    { key: "home", label: "Home" },
+    { key: "classes", label: "Classes" },
+    { key: "sessions", label: "Sessions" },
+    { key: "analytics", label: "Charts" },
+    { key: "stats", label: "Stats" },
+    { key: "calendar", label: "Calendar", action: "open-calendar" },
+  ];
+  const VALID_PAGE_KEYS = new Set(PAGE_DEFINITIONS.map(function (page) { return page.key; }));
+
   // Main HTML mount point where the whole app is drawn.
   const appRoot = document.querySelector("#app");
 
@@ -1457,15 +1467,6 @@
 
   // Top navigation renderer. Add/remove pages here to change the main tabs.
   function renderNavigation(currentPage, currentUser) {
-    const pages = [
-      { key: "home", label: "Home" },
-      { key: "classes", label: "Classes" },
-      { key: "sessions", label: "Sessions" },
-      { key: "analytics", label: "Charts" },
-      { key: "stats", label: "Stats" },
-      { key: "calendar", label: "Calendar" },
-    ];
-
     return `
       <nav class="site-nav" aria-label="Primary navigation">
         <div class="brand-block">
@@ -1477,13 +1478,13 @@
           <button class="ghost-button compact" type="button" data-action="logout">Log out</button>
         </div>
         <div class="nav-links">
-          ${pages
+          ${PAGE_DEFINITIONS
             .map(function (page) {
               return `
                 <button
                   class="${currentPage === page.key ? "nav-link active" : "nav-link"}"
                   type="button"
-                  data-action="navigate"
+                  data-action="${page.action || "navigate"}"
                   data-page="${page.key}"
                 >
                   ${page.label}
@@ -3561,6 +3562,18 @@
 
   function persist() {
     saveSessions(state.sessions);
+  }
+
+  function navigateToPage(pageKey) {
+    const nextPage = VALID_PAGE_KEYS.has(pageKey) ? pageKey : "home";
+
+    state.currentPage = nextPage;
+
+    if (nextPage !== "classes") {
+      state.selectedClass = null;
+    }
+
+    render();
   }
 
   // MAIN RENDER FUNCTION
