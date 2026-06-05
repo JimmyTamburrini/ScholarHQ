@@ -286,8 +286,8 @@ exports.handler = async function (event) {
         Authorization: "Bearer " + openAiApiKey,
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4.1",
-        tools: [{ type: "web_search" }],
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        tools: [{ type: "web_search_preview" }],
         tool_choice: "auto",
         input:
           "You are an academic study-planning assistant for a student dashboard named ScholarHQ. " +
