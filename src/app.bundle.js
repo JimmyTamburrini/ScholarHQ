@@ -35,8 +35,32 @@
   const GRADE_STORAGE_KEY = "study-tracker-grades";
   const CLASS_GRADES_STORAGE_KEY = "study-tracker-class-gradebooks";
   const CLASS_CATALOG_STORAGE_KEY = "study-tracker-class-catalog";
+  const CALENDAR_EVENTS_STORAGE_KEY = "study-tracker-calendar-events";
   const AUTH_ACCOUNTS_KEY = "scholarhq-auth-accounts";
   const AUTH_SESSION_KEY = "scholarhq-auth-session";
+  const PAGE_DEFINITIONS = [
+    { key: "home", label: "Home" },
+    { key: "classes", label: "Classes" },
+    { key: "sessions", label: "Sessions" },
+    { key: "analytics", label: "Charts" },
+    { key: "stats", label: "Stats" },
+    { key: "calendar", label: "Calendar", action: "open-calendar" },
+  ];
+  const VALID_PAGE_KEYS = new Set(PAGE_DEFINITIONS.map(function (page) { return page.key; }));
+
+  function getPageFromHash() {
+    const hashPage = String(window.location.hash || "").replace(/^#/, "").trim();
+    return VALID_PAGE_KEYS.has(hashPage) ? hashPage : "";
+  }
+
+  function setPageHash(pageKey) {
+    if (!VALID_PAGE_KEYS.has(pageKey) || window.location.hash === "#" + pageKey) {
+      return;
+    }
+
+    window.location.hash = pageKey;
+  }
+
   // Main HTML mount point where the whole app is drawn.
   const appRoot = document.querySelector("#app");
 
@@ -179,7 +203,7 @@
   }
 
   function copyLegacyStorageToAccount(userId) {
-    [STORAGE_KEY, GRADE_STORAGE_KEY, CLASS_GRADES_STORAGE_KEY, CLASS_CATALOG_STORAGE_KEY].forEach(function (baseKey) {
+    [STORAGE_KEY, GRADE_STORAGE_KEY, CLASS_GRADES_STORAGE_KEY, CLASS_CATALOG_STORAGE_KEY, CALENDAR_EVENTS_STORAGE_KEY].forEach(function (baseKey) {
       const scopedKey = getScopedStorageKey(baseKey, userId);
       if (window.localStorage.getItem(scopedKey)) {
         return;
@@ -197,11 +221,12 @@
     state.grades = loadGrades();
     state.classGradebooks = loadClassGradebooks();
     state.classCatalog = loadClassCatalog();
+    state.calendarEvents = loadCalendarEvents();
     state.draft = blankDraft();
     state.errors = {};
     state.editingId = null;
     state.selectedClass = null;
-    state.currentPage = "home";
+    state.currentPage = getPageFromHash() || "home";
   }
 
   function normalizeSession(session) {
@@ -393,6 +418,50 @@
     window.localStorage.setItem(getScopedStorageKey(CLASS_CATALOG_STORAGE_KEY), JSON.stringify(normalized));
   }
 
+  // CALENDAR EVENT STORAGE
+  // These functions save planned study blocks created from the Calendar page.
+  function normalizeCalendarEvent(event) {
+    const now = new Date().toISOString();
+    const durationMinutes = Number(event.durationMinutes || 60);
+    return {
+      id: String(event.id || generateId()),
+      title: String(event.title || "Study block").trim() || "Study block",
+      subject: String(event.subject || "").trim(),
+      date: isValidDateString(event.date) ? String(event.date).slice(0, 10) : now.slice(0, 10),
+      startTime: String(event.startTime || "09:00").trim() || "09:00",
+      durationMinutes: Number.isFinite(durationMinutes) ? Math.max(1, durationMinutes) : 60,
+      notes: String(event.notes || "").trim(),
+      createdAt: isValidDateString(event.createdAt) ? event.createdAt : now,
+      updatedAt: isValidDateString(event.updatedAt) ? event.updatedAt : now,
+    };
+  }
+
+  function loadCalendarEvents() {
+    try {
+      const raw = window.localStorage.getItem(getScopedStorageKey(CALENDAR_EVENTS_STORAGE_KEY));
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed
+        .map(normalizeCalendarEvent)
+        .filter(function (event) {
+          return event.title && event.date;
+        })
+        .sort(function (a, b) {
+          return new Date(a.date + "T" + (a.startTime || "00:00")) - new Date(b.date + "T" + (b.startTime || "00:00"));
+        });
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function saveCalendarEvents(events) {
+    const normalized = events.map(normalizeCalendarEvent);
+    window.localStorage.setItem(getScopedStorageKey(CALENDAR_EVENTS_STORAGE_KEY), JSON.stringify(normalized));
+  }
+
   function createSession(input) {
     const now = new Date().toISOString();
     return normalizeSession({
@@ -454,6 +523,30 @@
       month: "short",
       day: "numeric",
       year: "numeric",
+    }).format(date);
+  }
+
+  function formatMonthLabel(monthKey) {
+    const date = new Date(monthKey + "-01T00:00:00");
+    return new Intl.DateTimeFormat("en-US", {
+      month: "long",
+      year: "numeric",
+    }).format(date);
+  }
+
+  function formatTimeLabel(value) {
+    if (!value) {
+      return "Anytime";
+    }
+
+    const date = new Date("2026-01-01T" + value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
     }).format(date);
   }
 
@@ -1134,7 +1227,7 @@
     render();
 
     try {
-      const response = await window.fetch("/.netlify/functions/study-coach", {
+      const response = await window.fetch("/api/study-coach", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1156,7 +1249,7 @@
     } catch (error) {
       const isFileProtocol = window.location.protocol === "file:";
       state.aiCoach.error = isFileProtocol
-        ? "AI Study Coach needs a deployed site or local server with the Netlify function enabled. Open the project through Netlify or a local Netlify dev server to use it."
+        ? "AI Study Coach needs the Render server running. Open the project through Render or run `scholar start` locally to use it."
         : (error && error.message) || "The AI coach could not generate advice right now.";
     } finally {
       state.aiCoach.loading = false;
@@ -1174,7 +1267,7 @@
     render();
 
     try {
-      const response = await window.fetch("/.netlify/functions/study-plan", {
+      const response = await window.fetch("/api/study-plan", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1205,7 +1298,7 @@
     } catch (error) {
       const isFileProtocol = window.location.protocol === "file:";
       state.aiPlan.error = isFileProtocol
-        ? "AI Study Plan needs a deployed site or local server with the Netlify function enabled. Open the project through Netlify or a local Netlify dev server to use it."
+        ? "AI Study Plan needs the Render server running. Open the project through Render or run `scholar start` locally to use it."
         : (error && error.message) || "The AI study plan could not be generated right now.";
     } finally {
       state.aiPlan.loading = false;
@@ -1331,15 +1424,6 @@
 
   // Top navigation renderer. Add/remove pages here to change the main tabs.
   function renderNavigation(currentPage, currentUser) {
-    const pages = [
-      { key: "home", label: "Home" },
-      { key: "classes", label: "Classes" },
-      { key: "sessions", label: "Sessions" },
-      { key: "analytics", label: "Charts" },
-      { key: "stats", label: "Stats" },
-      { key: "calendar", label: "Calendar" },
-    ];
-
     return `
       <nav class="site-nav" aria-label="Primary navigation">
         <div class="brand-block">
@@ -1351,17 +1435,17 @@
           <button class="ghost-button compact" type="button" data-action="logout">Log out</button>
         </div>
         <div class="nav-links">
-          ${pages
+          ${PAGE_DEFINITIONS
             .map(function (page) {
               return `
-                <button
+                <a
                   class="${currentPage === page.key ? "nav-link active" : "nav-link"}"
-                  type="button"
-                  data-action="navigate"
+                  href="#${page.key}"
+                  data-action="${page.action || "navigate"}"
                   data-page="${page.key}"
                 >
                   ${page.label}
-                </button>
+                </a>
               `;
             })
             .join("")}
@@ -2361,63 +2445,243 @@
     `;
   }
 
+  function getMonthKey(date) {
+    return date.toISOString().slice(0, 7);
+  }
+
+  function getDateKey(date) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  function buildCalendarItems() {
+    const plannedEvents = state.calendarEvents.map(function (event) {
+      return {
+        id: event.id,
+        date: event.date,
+        title: event.title,
+        subject: event.subject,
+        timeLabel: formatTimeLabel(event.startTime),
+        durationMinutes: event.durationMinutes,
+        notes: event.notes,
+        source: "planned",
+      };
+    });
+
+    const actualSessions = state.sessions.map(function (session) {
+      return {
+        id: session.id,
+        date: session.date.slice(0, 10),
+        title: session.assignment || session.category || "Logged study session",
+        subject: session.subject,
+        timeLabel: "Logged",
+        durationMinutes: session.durationMinutes,
+        notes: session.notes,
+        source: "actual",
+      };
+    });
+
+    const deadlineEvents = Object.keys(state.classGradebooks || {}).flatMap(function (subject) {
+      return (state.classGradebooks[subject] || []).map(function (entry) {
+        return {
+          id: entry.id,
+          date: entry.date,
+          title: entry.name,
+          subject: subject,
+          timeLabel: "Due",
+          durationMinutes: 0,
+          notes: `${entry.itemType || "Assignment"} · ${Number(entry.weightPercent || 0)}% weight`,
+          source: "deadline",
+        };
+      });
+    });
+
+    return plannedEvents.concat(actualSessions).concat(deadlineEvents).sort(function (a, b) {
+      return new Date(a.date) - new Date(b.date);
+    });
+  }
+
+  function renderCalendarSubjectOptions(subjects, selectedSubject) {
+    return subjects.map(function (subject) {
+      return `<option value="${escapeHtml(subject)}" ${subject === selectedSubject ? "selected" : ""}>${escapeHtml(formatClassLabel(subject))}</option>`;
+    }).join("");
+  }
+
   function renderCalendarPage() {
+    const todayKey = getDateKey(new Date());
+    const monthKey = state.calendarMonth || todayKey.slice(0, 7);
+    const selectedDate = state.selectedCalendarDate || todayKey;
+    const monthStart = new Date(monthKey + "-01T00:00:00");
+    const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+    const leadingBlankDays = monthStart.getDay();
+    const daysInMonth = monthEnd.getDate();
+    const calendarItems = buildCalendarItems();
+    const itemsByDate = calendarItems.reduce(function (groups, item) {
+      const key = item.date;
+      groups[key] = groups[key] || [];
+      groups[key].push(item);
+      return groups;
+    }, {});
+    const selectedItems = itemsByDate[selectedDate] || [];
+    const monthItems = calendarItems.filter(function (item) {
+      return item.date.slice(0, 7) === monthKey;
+    });
+    const plannedMinutes = monthItems
+      .filter(function (item) { return item.source === "planned"; })
+      .reduce(function (sum, item) { return sum + Number(item.durationMinutes || 0); }, 0);
+    const actualMinutes = monthItems
+      .filter(function (item) { return item.source === "actual"; })
+      .reduce(function (sum, item) { return sum + Number(item.durationMinutes || 0); }, 0);
+    const subjects = getUniqueSubjects(state.sessions, state.grades, state.classGradebooks, state.classCatalog);
+    const calendarCells = [];
+
+    for (let index = 0; index < leadingBlankDays; index += 1) {
+      calendarCells.push('<div class="calendar-day calendar-day-empty" aria-hidden="true"></div>');
+    }
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const dateKey = `${monthKey}-${String(day).padStart(2, "0")}`;
+      const dayItems = itemsByDate[dateKey] || [];
+      const dayClasses = ["calendar-day"];
+      if (dateKey === todayKey) dayClasses.push("is-today");
+      if (dateKey === selectedDate) dayClasses.push("is-selected");
+
+      calendarCells.push(`
+        <button class="${dayClasses.join(" ")}" type="button" data-action="select-calendar-day" data-date="${escapeHtml(dateKey)}">
+          <span class="calendar-day-number">${day}</span>
+          <span class="calendar-day-count">${dayItems.length ? `${dayItems.length} item${dayItems.length === 1 ? "" : "s"}` : ""}</span>
+          <span class="calendar-day-dots">
+            ${dayItems.slice(0, 3).map(function (item) {
+              return `<span class="calendar-dot ${item.source}"></span>`;
+            }).join("")}
+          </span>
+        </button>
+      `);
+    }
+
     return `
       <section class="page-intro compact">
         <div>
           <p class="eyebrow">Calendar Hub</p>
-          <h1>Plan, sync, and compare your study schedule.</h1>
+          <h1>Plan your study week and track what actually happened.</h1>
         </div>
         <p class="hero-text">
-          This page is the future home for your Google Calendar connection, where planned study blocks and real study sessions can work together.
+          Add planned study blocks, see logged sessions on the same calendar, and compare your planned time with your real study history.
         </p>
       </section>
 
-      <section class="home-grid">
-        <article class="panel feature-panel">
-          <div class="panel-header">
+      <section class="calendar-layout">
+        <article class="panel calendar-panel">
+          <div class="panel-header calendar-toolbar">
             <div>
-              <p class="eyebrow">Planned Integration</p>
-              <h2>Google Calendar Two-Way Sync</h2>
+              <p class="eyebrow">Monthly Planner</p>
+              <h2>${escapeHtml(formatMonthLabel(monthKey))}</h2>
             </div>
-            <p class="panel-copy">This is reserved for the future full web app version with secure Google sign-in and sync.</p>
+            <div class="form-actions">
+              <button class="secondary-button" type="button" data-action="prev-calendar-month">Previous</button>
+              <button class="secondary-button" type="button" data-action="today-calendar-month">Today</button>
+              <button class="secondary-button" type="button" data-action="next-calendar-month">Next</button>
+            </div>
           </div>
 
-          <div class="feature-list">
-            <div class="feature-item">
-              <strong>Read your calendar</strong>
-              <p>See upcoming classes, deadlines, exams, and study blocks inside ScholarHQ.</p>
+          <div class="calendar-stats" aria-label="Calendar summary">
+            <div class="summary-card">
+              <p class="eyebrow">Planned</p>
+              <h2>${formatMinutes(plannedMinutes)}</h2>
+              <p>This month.</p>
             </div>
-            <div class="feature-item">
-              <strong>Create and update events</strong>
-              <p>Turn study plans into real Google Calendar events and update them when your schedule changes.</p>
+            <div class="summary-card">
+              <p class="eyebrow">Logged</p>
+              <h2>${formatMinutes(actualMinutes)}</h2>
+              <p>From saved sessions.</p>
             </div>
-            <div class="feature-item">
-              <strong>Compare planned vs actual</strong>
-              <p>Match your scheduled study blocks against the sessions you actually log in the app.</p>
+            <div class="summary-card">
+              <p class="eyebrow">Deadlines</p>
+              <h2>${monthItems.filter(function (item) { return item.source === "deadline"; }).length}</h2>
+              <p>Class gradebook dates.</p>
             </div>
+          </div>
+
+          <div class="calendar-weekdays" aria-hidden="true">
+            ${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(function (day) { return `<span>${day}</span>`; }).join("")}
+          </div>
+          <div class="calendar-grid">
+            ${calendarCells.join("")}
           </div>
         </article>
 
-        <article class="panel">
+        <aside class="panel calendar-side-panel">
           <div class="panel-header">
             <div>
-              <p class="eyebrow">Connection Status</p>
-              <h2>Calendar Not Connected</h2>
+              <p class="eyebrow">Selected Day</p>
+              <h2>${escapeHtml(formatDate(selectedDate + "T00:00:00"))}</h2>
             </div>
-            <p class="panel-copy">Two-way sync will require a secure backend and Google OAuth before this can be activated.</p>
+            <p class="panel-copy">Planned blocks, real sessions, and gradebook deadlines all appear here.</p>
           </div>
 
-          <div class="empty-state">
-            <h3>Future sync workspace</h3>
-            <p>This page is now built into the site so the calendar system has a dedicated place when we implement the real integration.</p>
-          </div>
+          <form id="calendar-event-form" class="calendar-form">
+            <input type="hidden" name="date" value="${escapeHtml(selectedDate)}" />
+            <label>
+              Study block title
+              <input type="text" name="title" maxlength="90" placeholder="Review chapter notes" required />
+            </label>
+            <div class="form-grid">
+              <label>
+                Class
+                ${subjects.length
+                  ? `<select name="subject" required><option value="">Choose class</option>${renderCalendarSubjectOptions(subjects, "")}</select>`
+                  : '<input type="text" name="subject" placeholder="Biology" required />'
+                }
+              </label>
+              <label>
+                Start time
+                <input type="time" name="startTime" value="09:00" required />
+              </label>
+              <label>
+                Minutes
+                <input type="number" name="durationMinutes" min="1" max="720" value="60" required />
+              </label>
+            </div>
+            <label>
+              Notes
+              <textarea name="notes" rows="3" maxlength="300" placeholder="What should you accomplish during this block?"></textarea>
+            </label>
+            <button class="primary-button" type="submit">Add study block</button>
+          </form>
 
-          <div class="form-actions">
-            <button class="primary-button" type="button" disabled>Connect Google Calendar</button>
-            <button class="secondary-button" type="button" disabled>Sync Study Blocks</button>
+          <div class="calendar-event-list">
+            ${selectedItems.length
+              ? selectedItems.map(function (item) {
+                  return `
+                    <article class="calendar-event ${item.source}">
+                      <div>
+                        <span class="calendar-event-type">${item.source === "planned" ? "Planned" : item.source === "actual" ? "Logged" : "Deadline"}</span>
+                        <h3>${escapeHtml(item.title)}</h3>
+                        <p>${escapeHtml(item.subject ? formatClassLabel(item.subject) : "No class")}</p>
+                        <p>${escapeHtml(item.timeLabel)}${item.durationMinutes ? ` · ${formatMinutes(item.durationMinutes)}` : ""}</p>
+                        ${item.notes ? `<p>${escapeHtml(item.notes)}</p>` : ""}
+                      </div>
+                      <div class="session-actions">
+                        ${item.source === "planned" ? `
+                          <button class="secondary-button compact" type="button" data-action="log-calendar-event" data-id="${escapeHtml(item.id)}">Log</button>
+                          <button class="ghost-button compact" type="button" data-action="delete-calendar-event" data-id="${escapeHtml(item.id)}">Delete</button>
+                        ` : item.source === "actual" ? `
+                          <button class="secondary-button compact" type="button" data-action="edit" data-id="${escapeHtml(item.id)}">Edit session</button>
+                        ` : `
+                          <button class="secondary-button compact" type="button" data-action="open-class" data-subject="${escapeHtml(item.subject)}">Open class</button>
+                        `}
+                      </div>
+                    </article>
+                  `;
+                }).join("")
+              : `
+                <div class="empty-state">
+                  <h3>No calendar items yet</h3>
+                  <p>Add a planned block above or log a study session for this day.</p>
+                </div>
+              `
+            }
           </div>
-        </article>
+        </aside>
       </section>
     `;
   }
@@ -3131,7 +3395,7 @@
     draft: blankDraft(),
     errors: {},
     editingId: null,
-    currentPage: "home",
+    currentPage: getPageFromHash() || "home",
     selectedClass: null,
     analyticsTab: "time",
     editingClassGrade: null,
@@ -3151,6 +3415,9 @@
     grades: activeUser ? loadGrades() : [],
     classGradebooks: activeUser ? loadClassGradebooks() : {},
     classCatalog: activeUser ? loadClassCatalog() : [],
+    calendarEvents: activeUser ? loadCalendarEvents() : [],
+    calendarMonth: new Date().toISOString().slice(0, 7),
+    selectedCalendarDate: new Date().toISOString().slice(0, 10),
     classDraft: { name: "", code: "" },
     classErrors: {},
     aiCoach: {
@@ -3293,7 +3560,10 @@
     persist();
     saveGrades(state.grades);
     saveClassGradebooks(state.classGradebooks);
-    saveClassCatalog(state.classCatalog);
+    state.calendarEvents = state.calendarEvents.filter(function (event) {
+      return event.subject !== subject;
+    });
+    saveCalendarEvents(state.calendarEvents);
   }
 
 
@@ -3377,6 +3647,23 @@
     saveSessions(state.sessions);
   }
 
+  function navigateToPage(pageKey, options) {
+    const nextPage = VALID_PAGE_KEYS.has(pageKey) ? pageKey : "home";
+    const shouldUpdateHash = !options || options.updateHash !== false;
+
+    state.currentPage = nextPage;
+
+    if (nextPage !== "classes") {
+      state.selectedClass = null;
+    }
+
+    if (shouldUpdateHash) {
+      setPageHash(nextPage);
+    }
+
+    render();
+  }
+
   // MAIN RENDER FUNCTION
   // Whenever state changes, this function rebuilds the current page.
   // Main render function. Rebuilds the currently selected page from app state.
@@ -3418,8 +3705,11 @@
       );
     } else if (state.currentPage === "stats") {
       pageContent = renderStatsPage(state.sessions);
-    } else {
+    } else if (state.currentPage === "calendar") {
       pageContent = renderCalendarPage();
+    } else {
+      state.currentPage = "home";
+      pageContent = renderHomePage(state.sessions, state.timer);
     }
 
     appRoot.innerHTML = `
@@ -3524,6 +3814,31 @@
       if (saveClassFromForm(form, false)) {
         showFlashMessage("Class saved with its class code.");
       }
+      return;
+    }
+
+    if (form.id === "calendar-event-form") {
+      const formData = new FormData(form);
+      const eventEntry = normalizeCalendarEvent({
+        id: generateId(),
+        title: String(formData.get("title") || "").trim(),
+        subject: String(formData.get("subject") || "").trim(),
+        date: String(formData.get("date") || state.selectedCalendarDate || new Date().toISOString().slice(0, 10)),
+        startTime: String(formData.get("startTime") || "09:00"),
+        durationMinutes: Number(formData.get("durationMinutes") || 60),
+        notes: String(formData.get("notes") || "").trim(),
+      });
+
+      if (!eventEntry.title || !eventEntry.subject || !eventEntry.date || !Number.isFinite(eventEntry.durationMinutes)) {
+        render();
+        return;
+      }
+
+      state.calendarEvents = state.calendarEvents.concat(eventEntry);
+      state.calendarMonth = eventEntry.date.slice(0, 7);
+      state.selectedCalendarDate = eventEntry.date;
+      saveCalendarEvents(state.calendarEvents);
+      showFlashMessage(`Planned ${eventEntry.title} for ${formatDate(eventEntry.date + "T00:00:00")}.`);
       return;
     }
 
@@ -3680,6 +3995,7 @@
       state.grades = [];
       state.classGradebooks = {};
       state.classCatalog = [];
+      state.calendarEvents = [];
       state.timer.isRunning = false;
       state.currentPage = "home";
       render();
@@ -3687,11 +4003,14 @@
     }
 
     if (action === "navigate" && target.dataset.page) {
-      state.currentPage = target.dataset.page;
-      if (target.dataset.page !== "classes") {
-        state.selectedClass = null;
-      }
-      render();
+      event.preventDefault();
+      navigateToPage(target.dataset.page);
+      return;
+    }
+
+    if (action === "open-calendar") {
+      event.preventDefault();
+      navigateToPage("calendar");
       return;
     }
 
@@ -3719,6 +4038,78 @@
       state.timer.elapsedSeconds = 0;
       state.timer.isRunning = false;
       render();
+      return;
+    }
+
+    if (action === "select-calendar-day" && target.dataset.date) {
+      state.selectedCalendarDate = target.dataset.date;
+      state.calendarMonth = target.dataset.date.slice(0, 7);
+      state.currentPage = "calendar";
+      render();
+      return;
+    }
+
+    if (action === "prev-calendar-month" || action === "next-calendar-month" || action === "today-calendar-month") {
+      const currentMonth = new Date((state.calendarMonth || new Date().toISOString().slice(0, 7)) + "-01T00:00:00");
+      if (action === "prev-calendar-month") {
+        currentMonth.setMonth(currentMonth.getMonth() - 1);
+      } else if (action === "next-calendar-month") {
+        currentMonth.setMonth(currentMonth.getMonth() + 1);
+      } else {
+        const today = new Date();
+        state.calendarMonth = getMonthKey(today);
+        state.selectedCalendarDate = getDateKey(today);
+        state.currentPage = "calendar";
+        render();
+        return;
+      }
+
+      state.calendarMonth = getMonthKey(currentMonth);
+      state.selectedCalendarDate = state.calendarMonth + "-01";
+      state.currentPage = "calendar";
+      render();
+      return;
+    }
+
+    if (action === "delete-calendar-event" && id) {
+      state.calendarEvents = state.calendarEvents.filter(function (event) {
+        return event.id !== id;
+      });
+      saveCalendarEvents(state.calendarEvents);
+      render();
+      return;
+    }
+
+    if (action === "log-calendar-event" && id) {
+      const eventEntry = state.calendarEvents.find(function (event) {
+        return event.id === id;
+      });
+
+      if (!eventEntry) {
+        return;
+      }
+
+      const session = createSession({
+        subject: eventEntry.subject,
+        assignment: eventEntry.title,
+        assignmentType: "",
+        assignmentGradePercent: "",
+        assignmentWeightPercent: "",
+        linkedClassGradeId: "",
+        date: eventEntry.date,
+        durationMinutes: eventEntry.durationMinutes,
+        notes: eventEntry.notes,
+        category: "Planned calendar block",
+      });
+      state.sessions = [session].concat(state.sessions).sort(function (a, b) {
+        return new Date(b.date) - new Date(a.date);
+      });
+      state.calendarEvents = state.calendarEvents.filter(function (event) {
+        return event.id !== id;
+      });
+      persist();
+      saveCalendarEvents(state.calendarEvents);
+      showFlashMessage(`${eventEntry.title} was moved from planned calendar block to logged study session.`);
       return;
     }
 
@@ -3929,18 +4320,24 @@
 
   // STARTUP / EVENT WIRING
   // These listeners connect the rendered HTML back to the JavaScript logic.
+  const handledFormIds = new Set([
+    "auth-form",
+    "profile-setup-form",
+    "class-catalog-form",
+    "session-form",
+    "grade-form",
+    "class-grade-form",
+    "calendar-event-form",
+  ]);
+
   appRoot.addEventListener("submit", function (event) {
-    if (
-      event.target instanceof HTMLFormElement &&
-      (
-        event.target.id === "auth-form" ||
-        event.target.id === "session-form" ||
-        event.target.id === "grade-form" ||
-        event.target.id === "class-grade-form"
-      )
-    ) {
-      handleSubmit(event.target, event);
+    const form = event.target;
+
+    if (!(form instanceof HTMLFormElement) || !handledFormIds.has(form.id)) {
+      return;
     }
+
+    handleSubmit(form, event);
   });
 
   appRoot.addEventListener("click", handleClick);
@@ -3994,6 +4391,16 @@
       render();
     }
   });
+
+  if (typeof window.addEventListener === "function") {
+    window.addEventListener("hashchange", function () {
+      const hashPage = getPageFromHash();
+
+      if (hashPage && state.currentUser && hashPage !== state.currentPage) {
+        navigateToPage(hashPage, { updateHash: false });
+      }
+    });
+  }
 
   window.setInterval(function () {
     if (!state.timer.isRunning) {
