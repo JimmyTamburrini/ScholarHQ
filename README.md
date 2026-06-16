@@ -1,11 +1,15 @@
-# Productivity Hub
+# ScholarHQ
 
-Productivity Hub is a local-first student productivity website built to help students log study sessions, track classes, calculate weighted grades and GPA, and review study trends from one clean dashboard.
+ScholarHQ is a local-first student productivity website built to help students log study sessions, track classes, calculate weighted grades and GPA, and review study trends from one clean dashboard.
 
-The app runs entirely in the browser using HTML, CSS, JavaScript, and `localStorage`, so no backend setup is required for the current version.
+# Active Demo HTML is uploaded here: https://jimmytamburrini.github.io/productivity-hub-overview/
+
+
+The core study tracker runs in the browser using HTML, CSS, JavaScript, and `localStorage`. The AI coach and study planner now use a small Render-hosted Node API so the OpenAI key stays on the server.
 
 ## What It Does
 
+- Create a local account, log in, and keep each browser user's study data in a separate workspace
 - Log study sessions with subject, date, duration, notes, category, and optional assignment or exam details
 - Track classes with weighted assignment entries and a running GPA for each class
 - View semester GPA across classes with saved weighted grades
@@ -13,21 +17,22 @@ The app runs entirely in the browser using HTML, CSS, JavaScript, and `localStor
 - Review `Grade vs Study Time` analytics based on study time leading up to assignments and exams
 - Explore summary stats like total study time, average session length, class distribution, and study patterns
 - Use a built-in study timer from the Home page
-- Reserve a Calendar page for future Google Calendar integration
+- Connect Google Calendar with OAuth and sync saved study sessions as calendar events
 
 ## Current Pages
 
 - `Home`: overview, timer, and quick productivity summary
-- `Sessions`: add, edit, delete, and sort study sessions
 - `Classes`: manage gradebooks, weighted grades, GPA, and class details
+- `Sessions`: add, edit, delete, and sort study sessions
 - `Charts`: weekly time charts and grade-vs-study analytics
 - `Stats`: study breakdowns and performance insights
-- `Calendar`: placeholder for planned calendar sync features
+- `Calendar`: Google OAuth connection status plus saved-session syncing into Google Calendar
 
 ## Key Behaviors
 
-- Study sessions are stored locally in the browser
-- Class gradebooks are stored locally in the browser
+- Account login and signup currently run locally in the browser as a backend-ready prototype
+- Study sessions are stored locally in the browser under the signed-in account
+- Class gradebooks are stored locally in the browser under the signed-in account
 - If a study session includes assignment info and a grade, it can publish into the matching class gradebook automatically
 - Grade-vs-study comparisons use:
   - matching subject
@@ -41,6 +46,8 @@ The app runs entirely in the browser using HTML, CSS, JavaScript, and `localStor
 - `CSS`
 - `JavaScript`
 - Browser `localStorage`
+- Render Web Service
+- Node.js API routes
 
 ## Project Structure
 
@@ -53,40 +60,93 @@ src/
 
 ## Run Locally
 
-Because this is a static browser app, you can run it very simply:
+Because this is a static browser app, you can run it very simply. The first screen now asks you to create a local ScholarHQ account before opening the dashboard.
 
 1. Clone or download the repository
-2. Open `index.html` in your browser
+2. Find the index.html file in the project folder once downloaded to your desktop
+3. Right-click to 'Open-with' and select your desired browser
 
-If you prefer, you can also serve it with a small local server.
+If you prefer, you can also serve it with the same Node server used on Render:
+
+```bash
+npm install
+npm start
+```
+
+The ScholarHQ command runner also supports the requested command style when the package binary is available:
+
+```bash
+scholar start
+```
 
 ## Main Files
 
 - `index.html` - app entry point
 - `src/app.bundle.js` - app logic, rendering, state, storage, and interactivity
 - `src/styles.css` - visual design, layout, theme, and responsive styling
-- `netlify/functions/study-coach.js` - serverless AI endpoint for the Home page coach
-- `netlify.toml` - Netlify publish and functions configuration
+- `api/study-coach.js` - Render-hosted AI endpoint for the Home page coach
+- `api/study-plan.js` - Render-hosted AI endpoint for the study planner
+- `api/google-calendar.js` - Google OAuth, token refresh, connection status, and Calendar event creation endpoint
+- `server.js` - Node server that serves the static app and AI/API routes
+- `render.yaml` - Render Blueprint configuration
 
-## AI Study Coach Setup
+## AI Study Coach Setup on Render
 
 This project now includes AI features on the Home page:
 
 - `AI Study Coach`
 - `AI Study Plan` with researched topic guidance from your logged assignments and exams
 
-To enable it:
+To enable it on Render:
 
-1. Deploy the project to Netlify
-2. Add an environment variable named `OPENAI_API_KEY`
-3. Optionally add `OPENAI_MODEL` if you want to override the default model
-4. Redeploy the site
+1. Create a Render Web Service from this repository, or use the included `render.yaml` Blueprint.
+2. Set the Render environment variable named `SCHOLARHQ_API` to your OpenAI API key. Do not commit the key to this repository.
+3. Optionally add `OPENAI_MODEL` if you want to override the default model (`gpt-4o-mini`).
+4. Use the Node runtime. The included Render Blueprint runs `npm install` and starts the app with `npm start`, which launches the ScholarHQ command runner with `scholar start` behavior.
+5. Redeploy the service after saving environment variables.
 
-The frontend sends your study data to the Netlify function, and the function calls the OpenAI API securely from the server side.
+The frontend sends your study data to Render API routes at `/api/study-coach` and `/api/study-plan`, and the Render server calls the OpenAI API securely from the server side.
+
+
+## Google Calendar Setup
+
+This project now includes the backend pieces needed for Google Calendar event creation. The frontend Calendar page connects the logged-in ScholarHQ browser account to Google OAuth, checks connection status, and syncs up to five saved study sessions into the user's primary Google Calendar.
+
+After creating your Google Cloud project:
+
+1. Enable the Google Calendar API.
+2. Configure the OAuth consent screen.
+3. Create an OAuth Client ID with type `Web application`.
+4. Add this authorized redirect URI for local development:
+
+```text
+http://localhost:3000/api/google/callback
+```
+
+5. On Render, add the deployed callback URL too, for example:
+
+```text
+https://your-render-service.onrender.com/api/google/callback
+```
+
+6. Add these environment variables locally or in Render:
+
+```bash
+GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/google/callback
+PUBLIC_APP_URL=http://localhost:3000
+GOOGLE_OAUTH_STATE_SECRET=replace-with-a-long-random-string
+GOOGLE_CALENDAR_TIME_ZONE=America/Detroit
+```
+
+The app requests the narrow `https://www.googleapis.com/auth/calendar.events` scope so ScholarHQ can create and update calendar events without full calendar access. OAuth token exchange and event creation stay on the Node backend; do not put Google client secrets in browser code.
+
+For this prototype, Google refresh tokens are saved in `.data/google-calendar-tokens.json`, which is ignored by Git. A production launch should move those tokens into an encrypted database tied to real server-side user accounts.
 
 ## Design Direction
 
-The interface uses a darker polished style with warm oak, gold, and deep neutral tones. The goal is to feel more premium and focused than a typical study dashboard while still staying practical and easy to use.
+Goal for the website is to be fully functional study tracker/planner designed to help students eliminate the excuses as to why they arent acheiving their academic goals. Allow students to identify their key weaknesses of their study process and eliminate them to succeed.
 
 ## Future Ideas
 
@@ -97,4 +157,12 @@ The interface uses a darker polished style with warm oak, gold, and deep neutral
 
 ## Status
 
-This version is currently local-first and browser-based. It is designed as a strong foundation for a future full web app or mobile app with authentication, cloud sync, and calendar integrations.
+This version is currently local-first and browser-based. It now includes a local-only authentication gate so students can create accounts and keep browser data separated, but those accounts are not secure server accounts yet. Do not use real passwords until a backend database and production auth provider are connected. It is designed as a strong foundation for a future full web app or mobile app with authentication, cloud sync, and calendar integrations.
+I also have multiple versions saved to my computer for us to eventuallly push to github, but they all require a backend program to use the AI features in. It costs money, which we do not have yet.
+In order to do so, we need a solid pitch to get accepted into the launch rogram to get funding.
+
+## Plan
+
+Currently we have a onboarding/account creation method. It is just not secure. We need to adjust this to create a actual usable website to go public. Once done, we can start to find a custom domain, trademark, and brand. Everything will cost money including subscriptions for the AI implementation, google calander implementation, Render hosting subscription, and of course custom domain for the Render site. I have added updated plans for the Render hosting subscription into "Discussions"
+
+WOOHOOO MONEY SPENDING!!

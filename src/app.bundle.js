@@ -17,10 +17,10 @@
     Most important places to edit:
     - Navigation tabs: renderNavigation()
     - Home page: renderHomePage()
+    - Classes page: renderClassesPage(), renderClassesOverview(), renderClassDetail()
     - Sessions page: renderSessionsPage(), renderSessionForm(), renderSessionList()
     - Charts page: renderWeeklyChart(), renderAnalyticsPage()
     - Stats page: renderStatsPage()
-    - Classes page: renderClassesPage(), renderClassesOverview(), renderClassDetail()
     - Calendar page: renderCalendarPage()
     - Saved data shape: normalizeSession(), loadGrades(), loadClassGradebooks()
     - Messages after saving: getEncouragementMessage(), showFlashMessage()
@@ -34,8 +34,79 @@
   const STORAGE_KEY = "study-tracker-sessions";
   const GRADE_STORAGE_KEY = "study-tracker-grades";
   const CLASS_GRADES_STORAGE_KEY = "study-tracker-class-gradebooks";
+  const CLASS_CATALOG_STORAGE_KEY = "study-tracker-class-catalog";
+  const AUTH_ACCOUNTS_KEY = "scholarhq-auth-accounts";
+  const AUTH_SESSION_KEY = "scholarhq-auth-session";
+  const PAGE_DEFINITIONS = [
+    { key: "home", label: "Home" },
+    { key: "classes", label: "Classes" },
+    { key: "sessions", label: "Sessions" },
+    { key: "analytics", label: "Charts" },
+    { key: "stats", label: "Stats" },
+    { key: "calendar", label: "Calendar", action: "open-calendar" },
+  ];
+  const VALID_PAGE_KEYS = new Set(PAGE_DEFINITIONS.map(function (page) { return page.key; }));
+
   // Main HTML mount point where the whole app is drawn.
   const appRoot = document.querySelector("#app");
+
+  function safeParseJson(raw, fallback) {
+    try {
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (_error) {
+      return fallback;
+    }
+  }
+
+  function normalizeEmail(email) {
+    return String(email || "").trim().toLowerCase();
+  }
+
+  function loadAccounts() {
+    const parsed = safeParseJson(window.localStorage.getItem(AUTH_ACCOUNTS_KEY), []);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map(function (account) {
+        return {
+          id: String(account.id || ""),
+          name: String(account.name || "Student").trim() || "Student",
+          email: normalizeEmail(account.email),
+          passwordHash: String(account.passwordHash || ""),
+          salt: String(account.salt || ""),
+          createdAt: String(account.createdAt || ""),
+          lastLoginAt: String(account.lastLoginAt || ""),
+          school: String(account.school || "").trim(),
+        };
+      })
+      .filter(function (account) {
+        return account.id && account.email && account.passwordHash && account.salt;
+      });
+  }
+
+  function saveAccounts(accounts) {
+    window.localStorage.setItem(AUTH_ACCOUNTS_KEY, JSON.stringify(accounts));
+  }
+
+  function loadSavedUser() {
+    const session = safeParseJson(window.localStorage.getItem(AUTH_SESSION_KEY), null);
+    if (!session || !session.userId) {
+      return null;
+    }
+
+    return loadAccounts().find(function (account) {
+      return account.id === session.userId;
+    }) || null;
+  }
+
+  let activeUser = loadSavedUser();
+
+  function getScopedStorageKey(baseKey, userId) {
+    const ownerId = userId || (activeUser && activeUser.id);
+    return ownerId ? baseKey + ":" + ownerId : baseKey;
+  }
 
   function isValidDateString(value) {
     return typeof value === "string" && !Number.isNaN(Date.parse(value));
@@ -47,6 +118,100 @@
     }
 
     return `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  function generateSalt() {
+    const values = new Uint8Array(16);
+    if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+      window.crypto.getRandomValues(values);
+      return Array.from(values)
+        .map(function (value) {
+          return value.toString(16).padStart(2, "0");
+        })
+        .join("");
+    }
+
+    return `salt-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  async function hashPassword(password, salt) {
+    const input = `${salt}:${password}`;
+
+    if (window.crypto && window.crypto.subtle && window.TextEncoder) {
+      const encoded = new TextEncoder().encode(input);
+      const digest = await window.crypto.subtle.digest("SHA-256", encoded);
+      return Array.from(new Uint8Array(digest))
+        .map(function (value) {
+          return value.toString(16).padStart(2, "0");
+        })
+        .join("");
+    }
+
+    // Fallback for older browsers. This is only for local demo accounts and is not backend-grade security.
+    var hash = 0;
+    for (var index = 0; index < input.length; index += 1) {
+      hash = (hash << 5) - hash + input.charCodeAt(index);
+      hash |= 0;
+    }
+    return String(hash);
+  }
+
+  function setActiveUser(account) {
+    activeUser = account;
+    if (account) {
+      window.localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ userId: account.id, savedAt: new Date().toISOString() }));
+    } else {
+      window.localStorage.removeItem(AUTH_SESSION_KEY);
+    }
+  }
+
+  function validateAuthFields(input, mode) {
+    const errors = {};
+    if (mode === "signup" && !String(input.name || "").trim()) {
+      errors.name = "Add your name so your dashboard can greet you.";
+    }
+
+    if (mode === "signup" && !String(input.school || "").trim()) {
+      errors.school = "Add your school so ScholarHQ can tailor study research to your classes.";
+    }
+
+    if (!normalizeEmail(input.email) || !normalizeEmail(input.email).includes("@")) {
+      errors.email = "Enter a valid email address.";
+    }
+
+    if (!String(input.password || "").trim()) {
+      errors.password = "Enter your password.";
+    } else if (mode === "signup" && String(input.password).length < 8) {
+      errors.password = "Use at least 8 characters.";
+    }
+
+    return errors;
+  }
+
+  function copyLegacyStorageToAccount(userId) {
+    [STORAGE_KEY, GRADE_STORAGE_KEY, CLASS_GRADES_STORAGE_KEY, CLASS_CATALOG_STORAGE_KEY].forEach(function (baseKey) {
+      const scopedKey = getScopedStorageKey(baseKey, userId);
+      if (window.localStorage.getItem(scopedKey)) {
+        return;
+      }
+
+      const legacyValue = window.localStorage.getItem(baseKey);
+      if (legacyValue) {
+        window.localStorage.setItem(scopedKey, legacyValue);
+      }
+    });
+  }
+
+  function reloadAccountData() {
+    state.sessions = loadSessions();
+    state.grades = loadGrades();
+    state.classGradebooks = loadClassGradebooks();
+    state.classCatalog = loadClassCatalog();
+    state.draft = blankDraft();
+    state.errors = {};
+    state.editingId = null;
+    state.selectedClass = null;
+    state.currentPage = "home";
   }
 
   function normalizeSession(session) {
@@ -79,7 +244,7 @@
   // These functions are responsible for reading/writing study-session data.
   function loadSessions() {
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const raw = window.localStorage.getItem(getScopedStorageKey(STORAGE_KEY));
       if (!raw) {
         return [];
       }
@@ -100,14 +265,14 @@
 
   function saveSessions(sessions) {
     const normalized = sessions.map(normalizeSession);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    window.localStorage.setItem(getScopedStorageKey(STORAGE_KEY), JSON.stringify(normalized));
   }
 
   // EXAM GRADE STORAGE
   // These functions save the grade-vs-study comparison section on the Stats page.
   function loadGrades() {
     try {
-      const raw = window.localStorage.getItem(GRADE_STORAGE_KEY);
+      const raw = window.localStorage.getItem(getScopedStorageKey(GRADE_STORAGE_KEY));
       if (!raw) {
         return [];
       }
@@ -140,14 +305,14 @@
   }
 
   function saveGrades(grades) {
-    window.localStorage.setItem(GRADE_STORAGE_KEY, JSON.stringify(grades));
+    window.localStorage.setItem(getScopedStorageKey(GRADE_STORAGE_KEY), JSON.stringify(grades));
   }
 
   // CLASS GRADEBOOK STORAGE
   // These functions save weighted assignment tables for each class.
   function loadClassGradebooks() {
     try {
-      const raw = window.localStorage.getItem(CLASS_GRADES_STORAGE_KEY);
+      const raw = window.localStorage.getItem(getScopedStorageKey(CLASS_GRADES_STORAGE_KEY));
       if (!raw) {
         return {};
       }
@@ -190,7 +355,52 @@
   }
 
   function saveClassGradebooks(gradebooks) {
-    window.localStorage.setItem(CLASS_GRADES_STORAGE_KEY, JSON.stringify(gradebooks));
+    window.localStorage.setItem(getScopedStorageKey(CLASS_GRADES_STORAGE_KEY), JSON.stringify(gradebooks));
+  }
+
+
+  // CLASS CATALOG STORAGE
+  // These functions save the student's explicit class roster with course codes.
+  function normalizeClassCatalogEntry(entry) {
+    return {
+      id: String(entry.id || generateId()),
+      name: String(entry.name || entry.subject || "").trim(),
+      code: String(entry.code || "").trim().toUpperCase(),
+      createdAt: isValidDateString(entry.createdAt) ? entry.createdAt : new Date().toISOString(),
+    };
+  }
+
+  function loadClassCatalog() {
+    try {
+      const raw = window.localStorage.getItem(getScopedStorageKey(CLASS_CATALOG_STORAGE_KEY));
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed
+        .map(normalizeClassCatalogEntry)
+        .filter(function (entry) {
+          return entry.name;
+        })
+        .sort(function (a, b) {
+          return a.name.localeCompare(b.name);
+        });
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function saveClassCatalog(classes) {
+    const normalized = classes
+      .map(normalizeClassCatalogEntry)
+      .filter(function (entry) {
+        return entry.name;
+      })
+      .sort(function (a, b) {
+        return a.name.localeCompare(b.name);
+      });
+    window.localStorage.setItem(getScopedStorageKey(CLASS_CATALOG_STORAGE_KEY), JSON.stringify(normalized));
   }
 
   function createSession(input) {
@@ -294,8 +504,13 @@
     return Number(value || 0).toFixed(2);
   }
 
-  function getUniqueSubjects(sessions, grades, classGradebooks) {
+  function getUniqueSubjects(sessions, grades, classGradebooks, classCatalog) {
     const subjects = new Set();
+    (classCatalog || []).forEach(function (entry) {
+      if (entry && entry.name) {
+        subjects.add(entry.name);
+      }
+    });
     sessions.forEach(function (session) {
       if (session.subject) {
         subjects.add(session.subject);
@@ -312,6 +527,22 @@
       }
     });
     return Array.from(subjects).sort();
+  }
+
+
+  function findClassCatalogEntry(subject) {
+    const normalized = String(subject || "").trim().toLowerCase();
+    return (state.classCatalog || []).find(function (entry) {
+      return String(entry.name || "").trim().toLowerCase() === normalized;
+    }) || null;
+  }
+
+  function formatClassLabel(subject) {
+    const entry = findClassCatalogEntry(subject);
+    if (!entry || !entry.code) {
+      return subject;
+    }
+    return `${subject} (${entry.code})`;
   }
 
   function calculateClassMetrics(entries) {
@@ -514,6 +745,13 @@
 
     return {
       generatedAt: new Date().toISOString(),
+      school: state.currentUser && state.currentUser.school ? state.currentUser.school : "",
+      classCatalog: (state.classCatalog || []).map(function (entry) {
+        return {
+          name: entry.name,
+          code: entry.code,
+        };
+      }),
       recentSessions: recentSessions,
       manualGrades: grades.slice(0, 12).map(function (grade) {
         return {
@@ -590,6 +828,13 @@
 
     return {
       generatedAt: new Date().toISOString(),
+      school: state.currentUser && state.currentUser.school ? state.currentUser.school : "",
+      classCatalog: (state.classCatalog || []).map(function (entry) {
+        return {
+          name: entry.name,
+          code: entry.code,
+        };
+      }),
       recentSessions: recentSessions.map(function (session) {
         return {
           subject: session.subject,
@@ -637,6 +882,33 @@
           .map(function (item) {
             const cleanItem = String(item || "").replace(/^[-*•]\s*/, "").trim();
             return `<div class="coach-list-item"><strong>${escapeHtml(cleanItem)}</strong></div>`;
+          })
+          .join("")}
+      </div>
+    `;
+  }
+
+
+  function renderRoadmapChart(blocks) {
+    if (!blocks || !blocks.length) {
+      return `<p class="coach-empty-copy">No roadmap blocks were returned this time.</p>`;
+    }
+
+    return `
+      <div class="roadmap-chart" aria-label="AI study roadmap chart">
+        ${blocks
+          .map(function (block, index) {
+            const text = String(block || "").replace(/^[-*•]\s*/, "").trim();
+            const parts = text.split(/[:|–-]/);
+            const day = parts.length > 1 ? parts[0].trim() : `Block ${index + 1}`;
+            const task = parts.length > 1 ? parts.slice(1).join(" - ").trim() : text;
+            return `
+              <div class="roadmap-step">
+                <div class="roadmap-day">${escapeHtml(day)}</div>
+                <div class="roadmap-block">${escapeHtml(task || text)}</div>
+                ${index < blocks.length - 1 ? '<div class="roadmap-arrow">➜</div>' : ""}
+              </div>
+            `;
           })
           .join("")}
       </div>
@@ -751,16 +1023,16 @@
   }
 
   function renderStudyPlanPanel(sessions, grades, classGradebooks, aiPlan) {
-    const hasData = sessions.length > 0 || grades.length > 0 || Object.keys(classGradebooks).length > 0;
+    const hasData = sessions.length > 0 || grades.length > 0 || Object.keys(classGradebooks).length > 0 || state.classCatalog.length > 0;
 
     return `
       <section class="panel ai-coach-panel study-plan-panel">
         <div class="panel-header">
           <div>
-            <p class="eyebrow">AI Study Plan</p>
-            <h2>Generate your next study roadmap</h2>
+            <p class="eyebrow">AI Study Planner + Roadmap</p>
+            <h2>Generate one clear study plan</h2>
           </div>
-          <p class="panel-copy">Build a realistic short study plan from your recent sessions, grades, and class workload, then research your logged assignment or exam topics to suggest what you should actually study.</p>
+          <p class="panel-copy">Get one formatted answer: what to focus on this week, a day-by-day roadmap chart, and researched class/topic advice based on your school, class codes, grades, and logged work.</p>
         </div>
 
         <div class="coach-status-row">
@@ -778,7 +1050,7 @@
           hasData
             ? `<div class="form-actions">
                 <button class="primary-button" type="button" data-action="generate-ai-plan" ${aiPlan.loading ? "disabled" : ""}>
-                  ${aiPlan.loading ? "Building Study Plan..." : "Generate AI Study Plan"}
+                  ${aiPlan.loading ? "Building Planner + Roadmap..." : "Generate AI Planner + Roadmap"}
                 </button>
               </div>`
             : `<div class="empty-state compact-empty-state">
@@ -798,21 +1070,21 @@
             ? `
               <div class="coach-output">
                 <div class="coach-summary-card">
-                  <p class="eyebrow">Plan Summary</p>
+                  <p class="eyebrow">1. Focus Until The Next Exam</p>
                   <h3>${escapeHtml(aiPlan.result.headline || "Your study plan is ready.")}</h3>
                   <p>${escapeHtml(aiPlan.result.summary || "The AI generated a practical study plan from your current data.")}</p>
                 </div>
 
                 <div class="coach-columns">
                   <div class="coach-section">
-                    <p class="eyebrow">Focus This Week</p>
+                    <p class="eyebrow">Priority Focus</p>
                     ${renderCoachList(
                       aiPlan.result.focusAreas || [],
                       "No focus areas were returned this time."
                     )}
                   </div>
                   <div class="coach-section">
-                    <p class="eyebrow">Suggested Blocks</p>
+                    <p class="eyebrow">Quick Study Blocks</p>
                     ${renderCoachList(
                       aiPlan.result.studyBlocks || [],
                       "No study blocks were returned this time."
@@ -820,9 +1092,14 @@
                   </div>
                 </div>
 
+                <div class="coach-section roadmap-section">
+                  <p class="eyebrow">2. Roadmap Chart</p>
+                  ${renderRoadmapChart(aiPlan.result.roadmapChart || aiPlan.result.studyBlocks || [])}
+                </div>
+
                 <div class="coach-columns">
                   <div class="coach-section">
-                    <p class="eyebrow">Researched Topics</p>
+                    <p class="eyebrow">3. Researched Class / Chapter</p>
                     ${renderCoachList(
                       aiPlan.result.researchedTopics || [],
                       "No researched topics were returned this time."
@@ -867,7 +1144,7 @@
     render();
 
     try {
-      const response = await window.fetch("/.netlify/functions/study-coach", {
+      const response = await window.fetch("/api/study-coach", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -889,7 +1166,7 @@
     } catch (error) {
       const isFileProtocol = window.location.protocol === "file:";
       state.aiCoach.error = isFileProtocol
-        ? "AI Study Coach needs a deployed site or local server with the Netlify function enabled. Open the project through Netlify or a local Netlify dev server to use it."
+        ? "AI Study Coach needs the Render server running. Open the project through Render or run `npm start` locally to use it."
         : (error && error.message) || "The AI coach could not generate advice right now.";
     } finally {
       state.aiCoach.loading = false;
@@ -907,7 +1184,7 @@
     render();
 
     try {
-      const response = await window.fetch("/.netlify/functions/study-plan", {
+      const response = await window.fetch("/api/study-plan", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -938,12 +1215,138 @@
     } catch (error) {
       const isFileProtocol = window.location.protocol === "file:";
       state.aiPlan.error = isFileProtocol
-        ? "AI Study Plan needs a deployed site or local server with the Netlify function enabled. Open the project through Netlify or a local Netlify dev server to use it."
+        ? "AI Study Plan needs the Render server running. Open the project through Render or run `npm start` locally to use it."
         : (error && error.message) || "The AI study plan could not be generated right now.";
     } finally {
       state.aiPlan.loading = false;
       render();
     }
+  }
+
+
+  function buildCalendarSyncSessions() {
+    return state.sessions
+      .slice()
+      .sort(function (a, b) {
+        return new Date(a.date) - new Date(b.date);
+      })
+      .slice(0, 5);
+  }
+
+  function connectGoogleCalendar() {
+    if (!state.currentUser || !state.currentUser.id) {
+      state.calendar.error = "Sign in before connecting Google Calendar.";
+      render();
+      return;
+    }
+
+    window.location.href = `/api/google/connect?userId=${encodeURIComponent(state.currentUser.id)}`;
+  }
+
+  async function requestCalendarStatus() {
+    if (!state.currentUser || !state.currentUser.id || state.calendar.loading) {
+      return;
+    }
+
+    state.calendar.loading = true;
+    state.calendar.error = "";
+    render();
+
+    try {
+      const response = await window.fetch(`/api/google/status?userId=${encodeURIComponent(state.currentUser.id)}`);
+      const payload = await response.json().catch(function () {
+        return {};
+      });
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Calendar status could not be checked.");
+      }
+
+      state.calendar.connected = Boolean(payload.connected);
+      state.calendar.connectedAt = payload.connectedAt || "";
+      state.calendar.error = "";
+    } catch (error) {
+      const isFileProtocol = window.location.protocol === "file:";
+      state.calendar.error = isFileProtocol
+        ? "Google Calendar needs the Render/Node server running. Use `npm start` locally or open the deployed Render site."
+        : (error && error.message) || "Calendar status could not be checked.";
+    } finally {
+      state.calendar.loading = false;
+      render();
+    }
+  }
+
+  async function syncGoogleCalendarSessions() {
+    if (!state.currentUser || !state.currentUser.id || state.calendar.syncing) {
+      return;
+    }
+
+    const sessionsToSync = buildCalendarSyncSessions();
+    if (!sessionsToSync.length) {
+      state.calendar.error = "Log at least one study session before syncing Google Calendar.";
+      render();
+      return;
+    }
+
+    state.calendar.syncing = true;
+    state.calendar.error = "";
+    state.calendar.message = "";
+    render();
+
+    try {
+      const response = await window.fetch("/api/google/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: state.currentUser.id,
+          sessions: sessionsToSync,
+        }),
+      });
+      const payload = await response.json().catch(function () {
+        return {};
+      });
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Google Calendar sync failed.");
+      }
+
+      const count = Array.isArray(payload.createdEvents) ? payload.createdEvents.length : 0;
+      state.calendar.connected = true;
+      state.calendar.lastSyncedAt = new Date().toISOString();
+      state.calendar.message = `${count} study session${count === 1 ? "" : "s"} added to Google Calendar.`;
+      state.calendar.error = "";
+    } catch (error) {
+      state.calendar.error = (error && error.message) || "Google Calendar sync failed.";
+    } finally {
+      state.calendar.syncing = false;
+      render();
+    }
+  }
+
+  function handleCalendarRedirectMessage() {
+    if (!window.URLSearchParams) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search || "");
+    const calendarResult = params.get("calendar");
+    if (!calendarResult) {
+      return;
+    }
+
+    state.currentPage = "calendar";
+    if (calendarResult === "connected") {
+      state.calendar.connected = true;
+      state.calendar.message = "Google Calendar connected. You can now sync saved study sessions.";
+      state.calendar.error = "";
+    } else if (calendarResult === "error") {
+      state.calendar.error = params.get("message") || "Google Calendar could not connect.";
+      state.calendar.message = "";
+    }
+
+    window.history.replaceState({}, document.title, window.location.pathname);
   }
 
 
@@ -986,31 +1389,102 @@
 
   // PAGE RENDERERS
   // Each render function below returns an HTML string for one piece of the UI.
-  // Top navigation renderer. Add/remove pages here to change the main tabs.
-  function renderNavigation(currentPage) {
-    const pages = [
-      { key: "home", label: "Home" },
-      { key: "sessions", label: "Sessions" },
-      { key: "classes", label: "Classes" },
-      { key: "analytics", label: "Charts" },
-      { key: "stats", label: "Stats" },
-      { key: "calendar", label: "Calendar" },
-    ];
+  function renderAuthPage(mode, draft, errors) {
+    const isSignup = mode === "signup";
+    const accountCount = loadAccounts().length;
 
+    return `
+      <main class="auth-shell">
+        <section class="auth-card">
+          <div class="auth-copy">
+            <p class="eyebrow">ScholarHQ Accounts</p>
+            <h1>${isSignup ? "Create your study account." : "Welcome back to ScholarHQ."}</h1>
+            <p class="hero-text">
+              Sign in to keep your study sessions, class gradebooks, charts, and AI planning data separated from other students on this browser.
+            </p>
+            <div class="auth-benefits">
+              <div>
+                <strong>Account-scoped data</strong>
+                <span>Your dashboard saves under your login instead of one shared browser profile.</span>
+              </div>
+              <div>
+                <strong>Backend-ready flow</strong>
+                <span>The login screen gives us a clean path to replace local accounts with real server auth later.</span>
+              </div>
+              <div>
+                <strong>Important security note</strong>
+                <span>This first version is local-only. Do not use a real password until a backend database is connected.</span>
+              </div>
+            </div>
+          </div>
+
+          <form class="auth-form panel" id="auth-form">
+            <input type="hidden" name="mode" value="${isSignup ? "signup" : "login"}" />
+            <div>
+              <p class="eyebrow">${isSignup ? "New Account" : "Login"}</p>
+              <h2>${isSignup ? "Start tracking progress" : "Open your dashboard"}</h2>
+              <p class="panel-copy">
+                ${accountCount ? `${accountCount} local account${accountCount === 1 ? "" : "s"} saved on this browser.` : "No local accounts yet. Create one to begin."}
+              </p>
+            </div>
+
+            ${isSignup ? `
+              <label>
+                Name
+                <input type="text" name="name" value="${escapeHtml(draft.name || "")}" autocomplete="name" placeholder="Alex Student" />
+                ${errors.name ? `<span class="field-error">${escapeHtml(errors.name)}</span>` : ""}
+              </label>
+              <label>
+                School
+                <input type="text" name="school" value="${escapeHtml(draft.school || "")}" autocomplete="organization" placeholder="Michigan State University" />
+                ${errors.school ? `<span class="field-error">${escapeHtml(errors.school)}</span>` : ""}
+              </label>
+            ` : ""}
+
+            <label>
+              Email
+              <input type="email" name="email" value="${escapeHtml(draft.email || "")}" autocomplete="email" placeholder="you@example.com" />
+              ${errors.email ? `<span class="field-error">${escapeHtml(errors.email)}</span>` : ""}
+            </label>
+
+            <label>
+              Password
+              <input type="password" name="password" autocomplete="${isSignup ? "new-password" : "current-password"}" placeholder="${isSignup ? "At least 8 characters" : "Your local password"}" />
+              ${errors.password ? `<span class="field-error">${escapeHtml(errors.password)}</span>` : ""}
+            </label>
+
+            ${errors.form ? `<div class="coach-alert">${escapeHtml(errors.form)}</div>` : ""}
+
+            <button class="primary-button" type="submit">${isSignup ? "Create account" : "Log in"}</button>
+            <button class="ghost-button" type="button" data-action="switch-auth" data-mode="${isSignup ? "login" : "signup"}">
+              ${isSignup ? "Already have an account? Log in" : "Need an account? Sign up"}
+            </button>
+          </form>
+        </section>
+      </main>
+    `;
+  }
+
+  // Top navigation renderer. Add/remove pages here to change the main tabs.
+  function renderNavigation(currentPage, currentUser) {
     return `
       <nav class="site-nav" aria-label="Primary navigation">
         <div class="brand-block">
           <p class="eyebrow">Study Tracker</p>
-          <h2>Productivity Hub</h2>
+          <h2>ScholarHQ</h2>
+        </div>
+        <div class="nav-account">
+          <span>Signed in as <strong>${escapeHtml((currentUser && currentUser.name) || "Student")}</strong></span>
+          <button class="ghost-button compact" type="button" data-action="logout">Log out</button>
         </div>
         <div class="nav-links">
-          ${pages
+          ${PAGE_DEFINITIONS
             .map(function (page) {
               return `
                 <button
                   class="${currentPage === page.key ? "nav-link active" : "nav-link"}"
                   type="button"
-                  data-action="navigate"
+                  data-action="${page.action || "navigate"}"
                   data-page="${page.key}"
                 >
                   ${page.label}
@@ -1105,7 +1579,6 @@
         </article>
       </section>
 
-      ${renderAiCoachPanel(sessions, state.grades, state.classGradebooks, state.aiCoach)}
       ${renderStudyPlanPanel(sessions, state.grades, state.classGradebooks, state.aiPlan)}
     `;
   }
@@ -1972,7 +2445,7 @@
                         <article class="grade-item">
                           <div class="grade-top">
                             <div>
-                              <p class="eyebrow">${escapeHtml(entry.subject)}</p>
+                              <p class="eyebrow">${escapeHtml(formatClassLabel(entry.subject))}</p>
                               <h3>${escapeHtml(entry.examName)}</h3>
                             </div>
                             <div class="grade-badge">${entry.gradePercent}%</div>
@@ -2015,61 +2488,112 @@
     `;
   }
 
-  function renderCalendarPage() {
+  function renderCalendarPage(calendarState, sessions) {
+    const connected = Boolean(calendarState.connected);
+    const recentSessions = sessions
+      .slice()
+      .sort(function (a, b) {
+        return new Date(a.date) - new Date(b.date);
+      })
+      .slice(0, 5);
+
     return `
       <section class="page-intro compact">
         <div>
           <p class="eyebrow">Calendar Hub</p>
-          <h1>Plan, sync, and compare your study schedule.</h1>
+          <h1>Send ScholarHQ study blocks to Google Calendar.</h1>
         </div>
         <p class="hero-text">
-          This page is the future home for your Google Calendar connection, where planned study blocks and real study sessions can work together.
+          Connect your Google Calendar, then sync saved study sessions as calendar events. AI-generated study plans can use this same backend route when you are ready to turn planner blocks into scheduled events.
         </p>
       </section>
 
-      <section class="home-grid">
+      <section class="home-grid calendar-grid">
         <article class="panel feature-panel">
           <div class="panel-header">
             <div>
-              <p class="eyebrow">Planned Integration</p>
-              <h2>Google Calendar Two-Way Sync</h2>
+              <p class="eyebrow">Google Calendar API</p>
+              <h2>How this connection works</h2>
             </div>
-            <p class="panel-copy">This is reserved for the future full web app version with secure Google sign-in and sync.</p>
+            <p class="panel-copy">ScholarHQ sends you through Google OAuth, saves refresh tokens on the server, and creates events from the backend so browser code never sees your Google client secret.</p>
           </div>
 
           <div class="feature-list">
             <div class="feature-item">
-              <strong>Read your calendar</strong>
-              <p>See upcoming classes, deadlines, exams, and study blocks inside Productivity Hub.</p>
+              <strong>1. Connect</strong>
+              <p>Use the Google Cloud OAuth client you created and authorize the Calendar Events scope.</p>
             </div>
             <div class="feature-item">
-              <strong>Create and update events</strong>
-              <p>Turn study plans into real Google Calendar events and update them when your schedule changes.</p>
+              <strong>2. Generate or log sessions</strong>
+              <p>Study sessions already saved in ScholarHQ become the event payload Google Calendar expects.</p>
             </div>
             <div class="feature-item">
-              <strong>Compare planned vs actual</strong>
-              <p>Match your scheduled study blocks against the sessions you actually log in the app.</p>
+              <strong>3. Sync events</strong>
+              <p>The server refreshes your Google access token when needed and inserts events into your primary calendar.</p>
             </div>
           </div>
         </article>
 
-        <article class="panel">
+        <article class="panel calendar-sync-panel">
           <div class="panel-header">
             <div>
               <p class="eyebrow">Connection Status</p>
-              <h2>Calendar Not Connected</h2>
+              <h2>${connected ? "Calendar Connected" : "Calendar Not Connected"}</h2>
             </div>
-            <p class="panel-copy">Two-way sync will require a secure backend and Google OAuth before this can be activated.</p>
+            <p class="panel-copy">${connected ? "You can now push saved ScholarHQ sessions into your primary Google Calendar." : "Add your Google OAuth credentials to the server, then connect this ScholarHQ account."}</p>
           </div>
 
-          <div class="empty-state">
-            <h3>Future sync workspace</h3>
-            <p>This page is now built into the site so the calendar system has a dedicated place when we implement the real integration.</p>
+          <div class="coach-status-row">
+            <div class="coach-chip">
+              <span class="insight-label">Google OAuth</span>
+              <strong>${calendarState.loading ? "Checking" : connected ? "Connected" : "Not connected"}</strong>
+            </div>
+            <div class="coach-chip">
+              <span class="insight-label">Last Sync</span>
+              <strong>${calendarState.lastSyncedAt ? escapeHtml(formatCoachTimestamp(calendarState.lastSyncedAt)) : "Not yet"}</strong>
+            </div>
           </div>
 
-          <div class="form-actions">
-            <button class="primary-button" type="button" disabled>Connect Google Calendar</button>
-            <button class="secondary-button" type="button" disabled>Sync Study Blocks</button>
+          ${
+            calendarState.error
+              ? `<div class="coach-alert">${escapeHtml(calendarState.error)}</div>`
+              : ""
+          }
+
+          ${
+            calendarState.message
+              ? `<div class="coach-summary-card calendar-success"><p>${escapeHtml(calendarState.message)}</p></div>`
+              : ""
+          }
+
+          <div class="form-actions calendar-actions">
+            <button class="primary-button" type="button" data-action="connect-google-calendar">
+              ${connected ? "Reconnect Google Calendar" : "Connect Google Calendar"}
+            </button>
+            <button class="secondary-button" type="button" data-action="refresh-google-calendar-status" ${calendarState.loading ? "disabled" : ""}>
+              ${calendarState.loading ? "Checking..." : "Refresh Status"}
+            </button>
+            <button class="secondary-button" type="button" data-action="sync-google-calendar" ${!connected || calendarState.syncing || !recentSessions.length ? "disabled" : ""}>
+              ${calendarState.syncing ? "Syncing..." : "Sync Saved Sessions"}
+            </button>
+          </div>
+
+          <div class="calendar-preview">
+            <p class="eyebrow">Ready To Sync</p>
+            ${
+              recentSessions.length
+                ? `<div class="coach-list">
+                    ${recentSessions
+                      .map(function (session) {
+                        return `<div class="coach-list-item calendar-preview-item">
+                          <strong>${escapeHtml(session.subject)}</strong>
+                          <span>${escapeHtml(formatDisplayDate(session.date))} • ${escapeHtml(formatMinutes(session.durationMinutes))}</span>
+                        </div>`;
+                      })
+                      .join("")}
+                  </div>`
+                : `<div class="empty-state compact-empty-state"><h3>No sessions yet</h3><p>Log study sessions first, then come back here to sync them into Google Calendar.</p></div>`
+            }
           </div>
         </article>
       </section>
@@ -2118,13 +2642,40 @@
         <article class="summary-card">
           <p class="eyebrow">Classes</p>
           <h2>${subjects.length}</h2>
-          <p>Total classes currently known in your Productivity Hub.</p>
+          <p>Total classes currently known in your ScholarHQ.</p>
         </article>
         <article class="summary-card">
           <p class="eyebrow">Graded Classes</p>
           <h2>${classesWithGrades.length}</h2>
           <p>Classes already using the GPA calculator.</p>
         </article>
+      </section>
+
+      <section class="panel class-roster-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Create A Class</p>
+            <h2>Add class name and code</h2>
+          </div>
+          <p class="panel-copy">Enter both the class and class code (for example, Calculus I and MTH 131) so AI planning can research the right course context.</p>
+        </div>
+        <form id="class-catalog-form" class="class-entry-form" novalidate>
+          <div class="form-grid">
+            <label>
+              <span>Class</span>
+              <input type="text" name="className" value="${escapeHtml(state.classDraft.name || "")}" placeholder="Calculus I" required />
+              ${state.classErrors.name ? `<small class="field-error">${escapeHtml(state.classErrors.name)}</small>` : ""}
+            </label>
+            <label>
+              <span>Class Code</span>
+              <input type="text" name="classCode" value="${escapeHtml(state.classDraft.code || "")}" placeholder="MTH 131" required />
+              ${state.classErrors.code ? `<small class="field-error">${escapeHtml(state.classErrors.code)}</small>` : ""}
+            </label>
+          </div>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Create Class</button>
+          </div>
+        </form>
       </section>
 
       <section class="panel">
@@ -2150,10 +2701,10 @@
                         data-subject="${escapeHtml(entry.subject)}"
                       >
                         <div class="class-card-top">
-                          <p class="eyebrow">${escapeHtml(entry.subject)}</p>
+                          <p class="eyebrow">${escapeHtml(formatClassLabel(entry.subject))}</p>
                           <span class="class-card-gpa">${entry.totalWeight > 0 ? formatGpa(entry.gpa) : "--"}</span>
                         </div>
-                        <h3>${escapeHtml(entry.subject)}</h3>
+                        <h3>${escapeHtml(formatClassLabel(entry.subject))}</h3>
                         <p>${
                           entry.totalWeight > 0
                             ? `${Math.round(entry.weightedAverage)}% weighted average across ${Math.round(entry.totalWeight)}% entered weight.`
@@ -2168,7 +2719,7 @@
             : `
               <div class="empty-state">
                 <h3>No classes yet</h3>
-                <p>Classes appear here automatically from the subjects you log in sessions or grade comparisons.</p>
+                <p>Create your first class with a class code, then log sessions against that roster.</p>
               </div>
             `
         }
@@ -2188,7 +2739,7 @@
       <section class="page-intro compact">
         <div>
           <p class="eyebrow">Class Detail</p>
-          <h1>${escapeHtml(subject)}</h1>
+          <h1>${escapeHtml(formatClassLabel(subject))}</h1>
         </div>
         <p class="hero-text">
           Enter assignment grades and the weight each one carries toward your final grade. Your class GPA stays here until you update it again.
@@ -2304,7 +2855,7 @@
           <div class="panel-header">
             <div>
               <p class="eyebrow">Grade Table</p>
-              <h2>${escapeHtml(subject)} Gradebook</h2>
+              <h2>${escapeHtml(formatClassLabel(subject))} Gradebook</h2>
             </div>
             <p class="panel-copy">Each saved item contributes to the weighted average and class GPA.</p>
           </div>
@@ -2369,7 +2920,7 @@
   }
 
   function renderClassesPage(sessions, grades, classGradebooks, selectedClass) {
-    const subjects = getUniqueSubjects(sessions, grades, classGradebooks);
+    const subjects = getUniqueSubjects(sessions, grades, classGradebooks, state.classCatalog);
 
     if (selectedClass) {
       return renderClassDetail(selectedClass, classGradebooks[selectedClass] || []);
@@ -2391,6 +2942,12 @@
     const assignmentLabel = draft.assignmentType
       ? `${draft.assignmentType.charAt(0).toUpperCase()}${draft.assignmentType.slice(1)} Name`
       : "Assignment / Exam";
+
+    const classOptions = (state.classCatalog || [])
+      .map(function (entry) {
+        return `<option value="${escapeHtml(entry.name)}">${escapeHtml(entry.code ? entry.name + " (" + entry.code + ")" : entry.name)}</option>`;
+      })
+      .join("");
 
     return `
       <section class="panel form-panel">
@@ -2416,15 +2973,17 @@
         <form id="session-form" novalidate>
           <div class="form-grid">
           <label>
-            <span>Subject</span>
+            <span>Class</span>
             <input
               type="text"
               name="subject"
                 value="${escapeHtml(draft.subject)}"
-                placeholder="Biology, Algebra, History..."
+                placeholder="Class name (example: Calculus I)"
+                list="class-roster-options"
                 maxlength="60"
                 required
             />
+            <datalist id="class-roster-options">${classOptions}</datalist>
             ${errors.subject ? `<small class="field-error">${escapeHtml(errors.subject)}</small>` : ""}
           </label>
 
@@ -2648,6 +3207,51 @@
   }
 
   // Full Sessions page renderer.
+
+  function renderProfileSetupPanel() {
+    const needsSchool = !(state.currentUser && state.currentUser.school);
+    const needsClasses = !state.classCatalog.length;
+
+    if (!needsSchool && !needsClasses) {
+      return "";
+    }
+
+    return `
+      <section class="panel onboarding-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Before You Log</p>
+            <h2>Add your school and classes</h2>
+          </div>
+          <p class="panel-copy">ScholarHQ uses your school, class names, and class codes to research the right chapter, course topic, or exam area for AI study planning.</p>
+        </div>
+        <form id="profile-setup-form" class="class-entry-form" novalidate>
+          <div class="form-grid">
+            <label>
+              <span>School</span>
+              <input type="text" name="school" value="${escapeHtml((state.currentUser && state.currentUser.school) || "")}" placeholder="Your school or university" required />
+              ${state.classErrors.school ? `<small class="field-error">${escapeHtml(state.classErrors.school)}</small>` : ""}
+            </label>
+            <label>
+              <span>Class</span>
+              <input type="text" name="className" value="${escapeHtml(state.classDraft.name || "")}" placeholder="Calculus I" required />
+              ${state.classErrors.name ? `<small class="field-error">${escapeHtml(state.classErrors.name)}</small>` : ""}
+            </label>
+            <label>
+              <span>Class Code</span>
+              <input type="text" name="classCode" value="${escapeHtml(state.classDraft.code || "")}" placeholder="MTH 131" required />
+              ${state.classErrors.code ? `<small class="field-error">${escapeHtml(state.classErrors.code)}</small>` : ""}
+            </label>
+          </div>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Save school and class</button>
+            <button class="secondary-button" type="button" data-action="go-classes">Manage all classes</button>
+          </div>
+        </form>
+      </section>
+    `;
+  }
+
   function renderSessionsPage(draft, errors, isEditing, sessions, editingId, sortMode) {
     return `
       <section class="page-intro compact">
@@ -2669,6 +3273,8 @@
           `
           : ""
       }
+
+      ${renderProfileSetupPanel()}
 
       <section class="workspace-grid">
         ${renderSessionForm({ draft: draft, errors: errors, isEditing: isEditing })}
@@ -2695,7 +3301,11 @@
   // APP STATE
   // This object is the "single source of truth" for what the UI should show.
   const state = {
-    sessions: loadSessions(),
+    currentUser: activeUser,
+    authMode: "login",
+    authErrors: {},
+    authDraft: { name: "", school: "", email: "", password: "" },
+    sessions: activeUser ? loadSessions() : [],
     draft: blankDraft(),
     errors: {},
     editingId: null,
@@ -2716,8 +3326,11 @@
       elapsedSeconds: 0,
       isRunning: false,
     },
-    grades: loadGrades(),
-    classGradebooks: loadClassGradebooks(),
+    grades: activeUser ? loadGrades() : [],
+    classGradebooks: activeUser ? loadClassGradebooks() : {},
+    classCatalog: activeUser ? loadClassCatalog() : [],
+    classDraft: { name: "", code: "" },
+    classErrors: {},
     aiCoach: {
       loading: false,
       error: "",
@@ -2729,6 +3342,15 @@
       error: "",
       result: null,
       lastUpdated: "",
+    },
+    calendar: {
+      loading: false,
+      syncing: false,
+      connected: false,
+      connectedAt: "",
+      lastSyncedAt: "",
+      error: "",
+      message: "",
     },
     flashMessage: "",
     flashTimeoutId: null,
@@ -2820,6 +3442,10 @@
       return grade.subject !== subject;
     });
 
+    state.classCatalog = state.classCatalog.filter(function (entry) {
+      return entry.name !== subject;
+    });
+
     state.classGradebooks = Object.keys(state.classGradebooks).reduce(function (next, key) {
       if (key !== subject) {
         next[key] = state.classGradebooks[key];
@@ -2854,16 +3480,111 @@
     persist();
     saveGrades(state.grades);
     saveClassGradebooks(state.classGradebooks);
+    saveClassCatalog(state.classCatalog);
+  }
+
+
+  function saveCurrentUserProfile(updates) {
+    if (!state.currentUser) {
+      return;
+    }
+
+    const updatedUser = {
+      ...state.currentUser,
+      ...updates,
+    };
+    const accounts = loadAccounts().map(function (account) {
+      return account.id === updatedUser.id ? updatedUser : account;
+    });
+    saveAccounts(accounts);
+    setActiveUser(updatedUser);
+    state.currentUser = updatedUser;
+  }
+
+  function saveClassFromForm(form, includeSchool) {
+    const formData = new FormData(form);
+    const school = String(formData.get("school") || "").trim();
+    const className = String(formData.get("className") || "").trim();
+    const classCode = String(formData.get("classCode") || "").trim().toUpperCase();
+    const errors = {};
+
+    if (includeSchool && !school && !(state.currentUser && state.currentUser.school)) {
+      errors.school = "Add your school first.";
+    }
+
+    if (!className) {
+      errors.name = "Enter the class name.";
+    }
+
+    if (!classCode) {
+      errors.code = "Enter the class code, like MTH 131.";
+    }
+
+    state.classDraft = { name: className, code: classCode };
+    state.classErrors = errors;
+
+    if (Object.keys(errors).length > 0) {
+      render();
+      return false;
+    }
+
+    if (includeSchool && school) {
+      saveCurrentUserProfile({ school: school });
+    }
+
+    const existingIndex = state.classCatalog.findIndex(function (entry) {
+      return entry.name.toLowerCase() === className.toLowerCase() || entry.code.toLowerCase() === classCode.toLowerCase();
+    });
+    const classEntry = {
+      id: existingIndex >= 0 ? state.classCatalog[existingIndex].id : generateId(),
+      name: className,
+      code: classCode,
+      createdAt: existingIndex >= 0 ? state.classCatalog[existingIndex].createdAt : new Date().toISOString(),
+    };
+
+    state.classCatalog = existingIndex >= 0
+      ? state.classCatalog.map(function (entry, index) { return index === existingIndex ? classEntry : entry; })
+      : state.classCatalog.concat(classEntry);
+
+    if (!state.classGradebooks[className]) {
+      state.classGradebooks = {
+        ...state.classGradebooks,
+        [className]: [],
+      };
+      saveClassGradebooks(state.classGradebooks);
+    }
+
+    saveClassCatalog(state.classCatalog);
+    state.classDraft = { name: "", code: "" };
+    state.classErrors = {};
+    return true;
   }
 
   function persist() {
     saveSessions(state.sessions);
   }
 
+  function navigateToPage(pageKey) {
+    const nextPage = VALID_PAGE_KEYS.has(pageKey) ? pageKey : "home";
+
+    state.currentPage = nextPage;
+
+    if (nextPage !== "classes") {
+      state.selectedClass = null;
+    }
+
+    render();
+  }
+
   // MAIN RENDER FUNCTION
   // Whenever state changes, this function rebuilds the current page.
   // Main render function. Rebuilds the currently selected page from app state.
   function render() {
+    if (!state.currentUser) {
+      appRoot.innerHTML = renderAuthPage(state.authMode, state.authDraft, state.authErrors);
+      return;
+    }
+
     const isEditing = Boolean(state.editingId);
     let pageContent = "";
 
@@ -2897,12 +3618,12 @@
     } else if (state.currentPage === "stats") {
       pageContent = renderStatsPage(state.sessions);
     } else {
-      pageContent = renderCalendarPage();
+      pageContent = renderCalendarPage(state.calendar, state.sessions);
     }
 
     appRoot.innerHTML = `
       <main class="page-shell">
-        ${renderNavigation(state.currentPage)}
+        ${renderNavigation(state.currentPage, state.currentUser)}
         <section class="hero hero-shell">
           ${pageContent}
         </section>
@@ -2913,8 +3634,97 @@
   // EVENT HANDLERS
   // handleSubmit() manages all forms in the app.
   // Shared submit handler for every form in the app.
-  function handleSubmit(form, event) {
+  async function handleSubmit(form, event) {
     event.preventDefault();
+
+    if (form.id === "auth-form") {
+      const formData = new FormData(form);
+      const mode = String(formData.get("mode") || "login");
+      const input = {
+        name: String(formData.get("name") || "").trim(),
+        school: String(formData.get("school") || "").trim(),
+        email: normalizeEmail(formData.get("email")),
+        password: String(formData.get("password") || ""),
+      };
+
+      state.authDraft = { name: input.name, school: input.school, email: input.email, password: "" };
+      state.authMode = mode === "signup" ? "signup" : "login";
+      state.authErrors = validateAuthFields(input, state.authMode);
+
+      if (Object.keys(state.authErrors).length > 0) {
+        render();
+        return;
+      }
+
+      const accounts = loadAccounts();
+      const existing = accounts.find(function (account) {
+        return account.email === input.email;
+      });
+
+      if (state.authMode === "signup") {
+        if (existing) {
+          state.authErrors = { email: "An account with this email already exists on this browser." };
+          render();
+          return;
+        }
+
+        const salt = generateSalt();
+        const now = new Date().toISOString();
+        const account = {
+          id: generateId(),
+          name: input.name,
+          email: input.email,
+          school: input.school,
+          passwordHash: await hashPassword(input.password, salt),
+          salt: salt,
+          createdAt: now,
+          lastLoginAt: now,
+        };
+
+        saveAccounts(accounts.concat(account));
+        setActiveUser(account);
+        copyLegacyStorageToAccount(account.id);
+        state.currentUser = account;
+        state.authErrors = {};
+        state.authDraft = { name: "", school: "", email: "", password: "" };
+        reloadAccountData();
+        showFlashMessage(`Welcome to ScholarHQ, ${account.name}. Your account workspace is ready.`);
+        return;
+      }
+
+      if (!existing || existing.passwordHash !== await hashPassword(input.password, existing.salt)) {
+        state.authErrors = { form: "Email or password did not match a local account." };
+        render();
+        return;
+      }
+
+      const updatedAccount = { ...existing, lastLoginAt: new Date().toISOString() };
+      saveAccounts(accounts.map(function (account) {
+        return account.id === updatedAccount.id ? updatedAccount : account;
+      }));
+      setActiveUser(updatedAccount);
+      copyLegacyStorageToAccount(updatedAccount.id);
+      state.currentUser = updatedAccount;
+      state.authErrors = {};
+      state.authDraft = { name: "", school: "", email: "", password: "" };
+      reloadAccountData();
+      showFlashMessage(`Welcome back, ${updatedAccount.name}.`);
+      return;
+    }
+
+    if (form.id === "profile-setup-form") {
+      if (saveClassFromForm(form, true)) {
+        showFlashMessage("School and class saved. You can now log sessions against your roster.");
+      }
+      return;
+    }
+
+    if (form.id === "class-catalog-form") {
+      if (saveClassFromForm(form, false)) {
+        showFlashMessage("Class saved with its class code.");
+      }
+      return;
+    }
 
     if (form.id === "grade-form") {
       const formData = new FormData(form);
@@ -3054,11 +3864,51 @@
     const id = target.dataset.id;
     const subject = target.dataset.subject;
 
+    if (action === "switch-auth" && target.dataset.mode) {
+      state.authMode = target.dataset.mode === "signup" ? "signup" : "login";
+      state.authErrors = {};
+      state.authDraft = { name: "", school: "", email: state.authDraft.email || "", password: "" };
+      render();
+      return;
+    }
+
+    if (action === "logout") {
+      setActiveUser(null);
+      state.currentUser = null;
+      state.sessions = [];
+      state.grades = [];
+      state.classGradebooks = {};
+      state.classCatalog = [];
+      state.calendar = {
+        loading: false,
+        syncing: false,
+        connected: false,
+        connectedAt: "",
+        lastSyncedAt: "",
+        error: "",
+        message: "",
+      };
+      state.timer.isRunning = false;
+      state.currentPage = "home";
+      render();
+      return;
+    }
+
     if (action === "navigate" && target.dataset.page) {
       state.currentPage = target.dataset.page;
       if (target.dataset.page !== "classes") {
         state.selectedClass = null;
       }
+      render();
+      if (target.dataset.page === "calendar") {
+        requestCalendarStatus();
+      }
+      return;
+    }
+
+    if (action === "go-classes") {
+      state.currentPage = "classes";
+      state.selectedClass = null;
       render();
       return;
     }
@@ -3090,6 +3940,21 @@
 
     if (action === "generate-ai-plan") {
       requestAiPlan();
+      return;
+    }
+
+    if (action === "connect-google-calendar") {
+      connectGoogleCalendar();
+      return;
+    }
+
+    if (action === "refresh-google-calendar-status") {
+      requestCalendarStatus();
+      return;
+    }
+
+    if (action === "sync-google-calendar") {
+      syncGoogleCalendarSessions();
       return;
     }
 
@@ -3290,17 +4155,23 @@
 
   // STARTUP / EVENT WIRING
   // These listeners connect the rendered HTML back to the JavaScript logic.
+  const handledFormIds = new Set([
+    "auth-form",
+    "profile-setup-form",
+    "class-catalog-form",
+    "session-form",
+    "grade-form",
+    "class-grade-form",
+  ]);
+
   appRoot.addEventListener("submit", function (event) {
-    if (
-      event.target instanceof HTMLFormElement &&
-      (
-        event.target.id === "session-form" ||
-        event.target.id === "grade-form" ||
-        event.target.id === "class-grade-form"
-      )
-    ) {
-      handleSubmit(event.target, event);
+    const form = event.target;
+
+    if (!(form instanceof HTMLFormElement) || !handledFormIds.has(form.id)) {
+      return;
     }
+
+    handleSubmit(form, event);
   });
 
   appRoot.addEventListener("click", handleClick);
@@ -3367,6 +4238,10 @@
     }
   }, 1000);
 
+  handleCalendarRedirectMessage();
   render();
-  document.title = "Productivity Hub";
+  if (state.currentPage === "calendar" && state.currentUser) {
+    requestCalendarStatus();
+  }
+  document.title = "ScholarHQ";
 })();
