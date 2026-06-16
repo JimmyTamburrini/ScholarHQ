@@ -137,7 +137,7 @@ body {
 
 /* Decorative overlay texture on top of the background. */
 body::before {
-  content: "";
+  content: none;
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -243,10 +243,11 @@ body::before {
   margin-bottom: 18px;
   padding: 18px 22px;
   border-radius: 999px;
-  background: rgba(27, 20, 16, 0.88);
+  background: var(--surface);
   border: 1px solid var(--frame);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(14px);
+  color: var(--text);
+  backdrop-filter: none;
 }
 
 /* ScholarHQ logo text in the top navigation. */
@@ -286,7 +287,7 @@ body::before {
 .nav-link {
   padding: 10px 16px;
   background: transparent;
-  color: var(--muted);
+  color: var(--text);
   border: 1px solid transparent;
   border-radius: 999px;
   cursor: pointer;
@@ -294,9 +295,9 @@ body::before {
 
 /* Highlighted current page link in the top navigation. */
 .nav-link.active {
-  color: #fffaf2;
-  background: linear-gradient(135deg, var(--navy), #3c4657);
-  border-color: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  background: var(--accent);
+  border-color: var(--accent-strong);
 }
 
 /* ==================== 5. PAGE HERO AND INTRODUCTION AREA ==================== */
@@ -306,16 +307,14 @@ body::before {
   padding: 34px;
   border: 1px solid var(--frame);
   border-radius: 38px;
-  background:
-    linear-gradient(180deg, rgba(48, 36, 29, 0.92), rgba(28, 21, 17, 0.97)),
-    var(--surface);
+  background: var(--surface);
   box-shadow: var(--shadow);
   overflow: hidden;
   position: relative;
 }
 
 .hero::after {
-  content: "";
+  content: none;
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -427,7 +426,7 @@ h1 {
 .coach-section {
   padding: 18px;
   border-radius: 22px;
-  background: rgba(255, 244, 232, 0.04);
+  background: var(--surface);
   border: 1px solid var(--frame);
 }
 
@@ -465,8 +464,8 @@ h1 {
 .coach-list-item {
   padding: 14px 16px;
   border-radius: 18px;
-  background: rgba(255, 244, 232, 0.035);
-  border: 1px solid rgba(230, 216, 194, 0.08);
+  background: var(--surface);
+  border: 1px solid var(--frame);
   color: var(--muted);
   line-height: 1.65;
 }
@@ -488,18 +487,18 @@ h1 {
 .research-source-list li {
   padding: 14px 16px;
   border-radius: 18px;
-  background: rgba(255, 244, 232, 0.035);
-  border: 1px solid rgba(230, 216, 194, 0.08);
+  background: var(--surface);
+  border: 1px solid var(--frame);
 }
 
 .research-source-list a {
-  color: #f2dfbe;
+  color: var(--accent-strong);
   text-decoration: none;
   font-weight: 600;
 }
 
 .research-source-list a:hover {
-  color: #fff4dd;
+  color: var(--accent-strong);
   text-decoration: underline;
 }
 
@@ -513,9 +512,9 @@ h1 {
   margin-top: 18px;
   padding: 14px 16px;
   border-radius: 18px;
-  background: rgba(123, 45, 47, 0.16);
-  border: 1px solid rgba(208, 167, 162, 0.22);
-  color: #f0d3ce;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-strong);
+  color: var(--text);
 }
 
 .compact-empty-state {
@@ -550,13 +549,13 @@ h1 {
   text-align: left;
   padding: 22px;
   border-radius: 24px;
-  background: rgba(255, 243, 230, 0.04);
+  background: var(--surface);
   border: 1px solid var(--frame);
   color: var(--text);
 }
 
 .class-card.active {
-  border-color: rgba(166, 132, 74, 0.32);
+  border-color: var(--accent-strong);
 }
 
 .class-card-top {
@@ -574,7 +573,7 @@ h1 {
   min-height: 38px;
   padding: 8px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--accent-soft);
   color: var(--gold);
   font-weight: 700;
 }
@@ -625,13 +624,12 @@ h1 {
 .summary-card,
 .panel {
   /* Shared panel/card styling used across the entire app. */
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent),
-    var(--surface);
+  background: var(--surface);
   border: 1px solid var(--frame);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(18px);
+  color: var(--text);
+  backdrop-filter: none;
 }
 
 /* Small dashboard summary box. */
@@ -687,9 +685,9 @@ h1 {
 }
 
 .sort-control select {
-  border: 1px solid rgba(230, 216, 194, 0.12);
+  border: 1px solid var(--frame);
   border-radius: 999px;
-  background-color: rgba(35, 27, 22, 0.92);
+  background-color: var(--surface);
   color: var(--text);
   padding: 12px 14px;
   padding-right: 42px;
@@ -711,12 +709,12 @@ h1 {
 
 .sort-control select:focus {
   outline: none;
-  border-color: rgba(166, 132, 74, 0.34);
-  box-shadow: 0 0 0 4px rgba(166, 132, 74, 0.08);
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
 select option {
-  background-color: #241c17;
+  background-color: var(--surface);
   color: var(--text);
 }
 
@@ -761,7 +759,7 @@ form,
 .stat-bar-track {
   height: 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: #f2f2f2;
   border: 1px solid var(--frame);
   overflow: hidden;
 }
@@ -776,7 +774,7 @@ form,
 .grade-item {
   padding: 20px;
   border-radius: 22px;
-  background: rgba(255, 243, 230, 0.04);
+  background: var(--surface);
   border: 1px solid var(--frame);
 }
 
@@ -795,7 +793,7 @@ form,
   padding: 10px 14px;
   border-radius: 999px;
   background: var(--accent-soft);
-  color: #efc2bf;
+  color: var(--text);
   font-weight: 700;
 }
 
@@ -848,14 +846,14 @@ form,
 
 .grade-table-row {
   padding: 14px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--line);
 }
 
 /* Home page feature/tip box. */
 .feature-item {
   padding: 18px;
   border-radius: 20px;
-  background: rgba(255, 240, 225, 0.06);
+  background: var(--surface);
   border: 1px solid var(--frame);
 }
 
@@ -878,11 +876,9 @@ form,
   text-align: center;
   padding: 22px;
   border-radius: 24px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent),
-    rgba(26, 19, 15, 0.84);
-  border: 1px solid rgba(230, 216, 194, 0.14);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  background: var(--surface);
+  border: 1px solid var(--frame);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.02);
   font-variant-numeric: tabular-nums;
   min-height: 144px;
   display: flex;
@@ -901,7 +897,7 @@ form,
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: rgba(181, 171, 157, 0.45);
+  background: #bdbdbd;
 }
 
 .status-dot.running {
@@ -917,8 +913,8 @@ form,
   margin-bottom: 18px;
   padding: 14px 16px;
   border-radius: 18px;
-  background: rgba(48, 69, 55, 0.16);
-  border: 1px solid rgba(48, 69, 55, 0.2);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-strong);
   color: var(--text);
 }
 
@@ -972,9 +968,9 @@ input,
 textarea,
 select {
   width: 100%;
-  border: 1px solid rgba(230, 216, 194, 0.12);
+  border: 1px solid var(--frame);
   border-radius: var(--radius-md);
-  background: rgba(8, 12, 18, 0.46);
+  background: var(--surface);
   color: var(--text);
   padding: 14px 16px;
   transition:
@@ -1005,12 +1001,12 @@ input:focus,
 textarea:focus,
 select:focus {
   outline: none;
-  border-color: rgba(166, 132, 74, 0.34);
-  box-shadow: 0 0 0 4px rgba(166, 132, 74, 0.08);
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
 .field-error {
-  color: #d5928f;
+  color: #b00020;
 }
 
 input[type="range"] {
@@ -1027,7 +1023,7 @@ input[type="range"]::-webkit-slider-runnable-track {
   height: 8px;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--oak), var(--gold));
-  border: 1px solid rgba(230, 216, 194, 0.12);
+  border: 1px solid var(--frame);
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -1037,8 +1033,8 @@ input[type="range"]::-webkit-slider-thumb {
   height: 18px;
   margin-top: -6px;
   border-radius: 999px;
-  background: #f7efe2;
-  border: 3px solid var(--navy);
+  background: var(--surface);
+  border: 3px solid var(--accent-strong);
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
 }
 
@@ -1046,15 +1042,15 @@ input[type="range"]::-moz-range-track {
   height: 8px;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--oak), var(--gold));
-  border: 1px solid rgba(230, 216, 194, 0.12);
+  border: 1px solid var(--frame);
 }
 
 input[type="range"]::-moz-range-thumb {
   width: 18px;
   height: 18px;
   border-radius: 999px;
-  background: #f7efe2;
-  border: 3px solid var(--navy);
+  background: var(--surface);
+  border: 3px solid var(--accent-strong);
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
 }
 
@@ -1086,18 +1082,18 @@ button:hover {
 
 /* Main action button, like save/start/generate. */
 .primary-button {
-  background: linear-gradient(135deg, var(--forest), #4c5f42);
-  color: #fdf8f1;
-  box-shadow: 0 14px 24px rgba(35, 56, 45, 0.18);
+  background: var(--accent);
+  color: var(--text);
+  box-shadow: 0 14px 24px rgba(85, 201, 0, 0.18);
 }
 
 .primary-button:hover {
-  background: linear-gradient(135deg, #26392e, #314b3a);
+  background: var(--accent-strong);
 }
 
 /* Secondary action button. */
 .secondary-button {
-  background: rgba(255, 245, 235, 0.04);
+  background: var(--surface);
   color: var(--text);
   border: 1px solid var(--frame);
 }
@@ -1105,21 +1101,21 @@ button:hover {
 /* Low-emphasis text button, often delete/cancel. */
 .ghost-button {
   background: transparent;
-  color: #d0a7a2;
-  border: 1px solid rgba(208, 167, 162, 0.18);
+  color: var(--accent-strong);
+  border: 1px solid var(--accent-strong);
 }
 
 /* Chart/filter selection pill. */
 .filter-chip {
   padding: 10px 14px;
-  background: rgba(255, 244, 232, 0.04);
+  background: var(--surface);
   color: var(--muted);
   border: 1px solid var(--frame);
 }
 
 .filter-chip.active {
-  color: #fdf8f1;
-  background: linear-gradient(135deg, var(--oak), var(--oak-light));
+  color: var(--text);
+  background: var(--accent);
 }
 
 /* Small analytics insight pill. */
@@ -1129,7 +1125,7 @@ button:hover {
   gap: 10px;
   padding: 12px 14px;
   border-radius: 999px;
-  background: rgba(255, 243, 230, 0.04);
+  background: var(--surface);
   border: 1px solid var(--frame);
   color: var(--muted);
 }
@@ -1151,9 +1147,7 @@ button:hover {
   min-height: 320px;
   padding: 18px;
   border-radius: 24px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent),
-    rgba(22, 17, 14, 0.8);
+  background: var(--surface);
   border: 1px solid var(--frame);
 }
 
@@ -1221,7 +1215,7 @@ button:hover {
 
 .trend-line polyline {
   fill: none;
-  stroke: var(--gold);
+  stroke: #b08a4b;
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -1243,7 +1237,7 @@ button:hover {
   height: 280px;
   border-radius: 22px;
   padding: 14px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface);
   border: 1px solid var(--frame);
   display: flex;
   justify-content: center;
@@ -1266,8 +1260,8 @@ button:hover {
   height: 18px;
   margin-left: -9px;
   border-radius: 999px;
-  background: #f7efe2;
-  border: 4px solid var(--gold);
+  background: var(--surface);
+  border: 4px solid #b08a4b;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
 }
 
@@ -1336,12 +1330,12 @@ button:hover {
   height: 220px;
   border-radius: 18px;
   padding: 10px;
-  background: rgba(255, 245, 235, 0.035);
+  background: var(--surface);
   border: 1px solid var(--frame);
 }
 
 .chart-column.selected .chart-bar-frame {
-  border-color: rgba(166, 132, 74, 0.34);
+  border-color: var(--accent-strong);
 }
 
 .chart-stack {
@@ -1380,7 +1374,7 @@ button:hover {
 
 .chart-segment.empty {
   height: 6px;
-  background: rgba(120, 108, 97, 0.28);
+  background: rgba(105, 123, 111, 0.28);
   box-shadow: none;
 }
 
@@ -1404,7 +1398,7 @@ button:hover {
   gap: 16px;
   padding: 18px;
   border-radius: 22px;
-  background: rgba(255, 244, 232, 0.04);
+  background: var(--surface);
   border: 1px solid var(--frame);
 }
 
@@ -1446,12 +1440,12 @@ button:hover {
   gap: 20px;
   padding: 22px;
   border-radius: 22px;
-  background: rgba(255, 243, 230, 0.04);
+  background: var(--surface);
   border: 1px solid var(--frame);
 }
 
 .session-item.is-editing {
-  border-color: rgba(166, 132, 74, 0.28);
+  border-color: var(--accent-strong);
 }
 
 .session-main {
@@ -1491,7 +1485,7 @@ button:hover {
   padding: 8px 12px;
   border-radius: 999px;
   background: var(--accent-soft);
-  color: #efc2bf;
+  color: var(--text);
   font-weight: 700;
 }
 
@@ -1499,8 +1493,22 @@ button:hover {
 .empty-state {
   padding: 28px;
   border-radius: 24px;
-  background: rgba(255, 243, 230, 0.04);
+  background: var(--surface);
   border: 1px dashed var(--frame);
+}
+
+.account-chip {
+  display: grid;
+  gap: 6px;
+  text-align: right;
+}
+
+.account-button {
+  padding: 8px 12px;
+}
+
+.auth-panel {
+  max-width: 560px;
 }
 
 @keyframes editingPulse {
@@ -1508,7 +1516,7 @@ button:hover {
     box-shadow: var(--shadow);
   }
   50% {
-    box-shadow: 0 28px 78px rgba(0, 0, 0, 0.42);
+    box-shadow: 0 28px 78px rgba(0, 0, 0, 0.26);
   }
   100% {
     box-shadow: var(--shadow);
@@ -1549,6 +1557,10 @@ button:hover {
   .list-toolbar {
     flex-direction: column;
     align-items: start;
+  }
+
+  .account-chip {
+    text-align: left;
   }
 
   .chart-grid {
