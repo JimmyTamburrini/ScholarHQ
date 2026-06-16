@@ -15,9 +15,40 @@ const {
 const rootDir = __dirname;
 const port = Number(process.env.PORT || 3000);
 
+function normalizeEnvValue(value) {
+  const trimmed = String(value || "").trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
+[
+  "OPENAI_API_KEY",
+  "SCHOLARHQ_API",
+  "OPENAI_MODEL",
+  "SUPABASE_URL",
+  "SUPABASE_ANON_KEY",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+  "GOOGLE_REDIRECT_URI",
+  "PUBLIC_APP_URL",
+  "GOOGLE_OAUTH_STATE_SECRET",
+  "GOOGLE_CALENDAR_TIME_ZONE",
+].forEach(function (name) {
+  if (process.env[name]) {
+    process.env[name] = normalizeEnvValue(process.env[name]);
+  }
+});
+
 const apiHandlers = {
   "/api/study-coach": studyCoachHandler,
   "/api/study-plan": studyPlanHandler,
+  "/.netlify/functions/study-coach": studyCoachHandler,
+  "/.netlify/functions/study-plan": studyPlanHandler,
   "/api/google/connect": handleGoogleConnect,
   "/api/google/callback": handleGoogleCallback,
   "/api/google/status": handleGoogleStatus,
@@ -46,7 +77,12 @@ function sendJson(res, statusCode, payload) {
   sendResponse(
     res,
     statusCode,
-    { "Content-Type": "application/json; charset=utf-8" },
+    {
+      "Content-Type": "application/json; charset=utf-8",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    },
     JSON.stringify(payload)
   );
 }
@@ -118,6 +154,29 @@ function resolveStaticFile(urlPath) {
   return path.join(rootDir, "index.html");
 }
 
+function injectRuntimeConfig(content) {
+  const runtimeConfig = {
+    supabaseUrl: process.env.SUPABASE_URL || "",
+    supabaseAnonKey: process.env.SUPABASE_ANON_KEY || "",
+  };
+
+  return content.replace(
+    /window\.PRODUCTIVITY_HUB_CONFIG\s*=\s*\{[\s\S]*?\};/,
+    "window.PRODUCTIVITY_HUB_CONFIG = " + JSON.stringify(runtimeConfig) + ";"
+  );
+}
+
+function handleStatusRequest(res) {
+  sendJson(res, 200, {
+    openAiKeyConfigured: Boolean(process.env.OPENAI_API_KEY || process.env.SCHOLARHQ_API),
+    openAiKeyLooksPlaceholder: /your[_-]?openai|placeholder/i.test(
+      process.env.OPENAI_API_KEY || process.env.SCHOLARHQ_API || ""
+    ),
+    supabaseUrlConfigured: Boolean(process.env.SUPABASE_URL),
+    supabaseAnonKeyConfigured: Boolean(process.env.SUPABASE_ANON_KEY),
+  });
+}
+
 function handleStaticRequest(req, res, pathname) {
   const filePath = resolveStaticFile(pathname);
 
@@ -131,20 +190,33 @@ function handleStaticRequest(req, res, pathname) {
     "Content-Type": mimeTypes[extension] || "application/octet-stream",
   };
 
-  fs.createReadStream(filePath)
-    .on("error", function () {
+  fs.readFile(filePath, function (error, content) {
+    if (error) {
       sendJson(res, 500, { error: "Could not read the requested file." });
-    })
-    .on("open", function () {
-      res.writeHead(200, headers);
-    })
-    .pipe(res);
+      return;
+    }
+
+    const isMainHtml = path.basename(filePath) === "index.html";
+    const body = isMainHtml ? injectRuntimeConfig(content.toString("utf8")) : content;
+    res.writeHead(200, headers);
+    res.end(body);
+  });
 }
 
 function createServer() {
   return http.createServer(function (req, res) {
     const requestUrl = new URL(req.url || "/", "http://localhost");
     const handler = apiHandlers[requestUrl.pathname];
+
+    if (req.method === "OPTIONS") {
+      sendJson(res, 204, {});
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/status") {
+      handleStatusRequest(res);
+      return;
+    }
 
     if (handler) {
       handleApiRequest(req, res, handler);

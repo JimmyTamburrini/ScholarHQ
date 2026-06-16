@@ -1,3 +1,11 @@
 .env
+.env.*
+!.env.example
+
 .data/
+.netlify/
 node_modules/
+
+*.log
+__pycache__/
+*.pyc

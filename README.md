@@ -1,15 +1,14 @@
 # ScholarHQ
 
-ScholarHQ is a local-first student productivity website built to help students log study sessions, track classes, calculate weighted grades and GPA, and review study trends from one clean dashboard.
+ScholarHQ is a student productivity website built to help students log study sessions, track classes, calculate weighted grades and GPA, review study trends, and generate AI study plans from one dashboard.
 
 # Active Demo HTML is uploaded here: https://jimmytamburrini.github.io/productivity-hub-overview/
 
-
-The core study tracker runs in the browser using HTML, CSS, JavaScript, and `localStorage`. The AI coach and study planner now use a small Render-hosted Node API so the OpenAI key stays on the server.
+The core study tracker runs in the browser using HTML, CSS, JavaScript, and `localStorage`. The AI coach, study planner, and Google Calendar integration use a Render-hosted Node API so private keys stay on the server.
 
 ## What It Does
 
-- Create a local account, log in, and keep each browser user's study data in a separate workspace
+- Create an account, log in, and keep each user's study data in a separate workspace
 - Log study sessions with subject, date, duration, notes, category, and optional assignment or exam details
 - Track classes with weighted assignment entries and a running GPA for each class
 - View semester GPA across classes with saved weighted grades
@@ -17,11 +16,12 @@ The core study tracker runs in the browser using HTML, CSS, JavaScript, and `loc
 - Review `Grade vs Study Time` analytics based on study time leading up to assignments and exams
 - Explore summary stats like total study time, average session length, class distribution, and study patterns
 - Use a built-in study timer from the Home page
+- Generate AI study coach feedback and AI study plans from server-side API routes
 - Connect Google Calendar with OAuth and sync saved study sessions as calendar events
 
 ## Current Pages
 
-- `Home`: overview, timer, and quick productivity summary
+- `Home`: overview, timer, AI coach, AI planner, and quick productivity summary
 - `Classes`: manage gradebooks, weighted grades, GPA, and class details
 - `Sessions`: add, edit, delete, and sort study sessions
 - `Charts`: weekly time charts and grade-vs-study analytics
@@ -30,15 +30,11 @@ The core study tracker runs in the browser using HTML, CSS, JavaScript, and `loc
 
 ## Key Behaviors
 
-- Account login and signup currently run locally in the browser as a backend-ready prototype
-- Study sessions are stored locally in the browser under the signed-in account
-- Class gradebooks are stored locally in the browser under the signed-in account
+- Account login and signup use Supabase Auth when configured
+- Study sessions and class gradebooks sync to Supabase by account when configured
+- A local browser cache remains available for resilience
 - If a study session includes assignment info and a grade, it can publish into the matching class gradebook automatically
-- Grade-vs-study comparisons use:
-  - matching subject
-  - matching assignment name
-  - sessions categorized as `study`
-  - a 14-day lookback window before the assignment or exam
+- Grade-vs-study comparisons use matching subject, matching assignment name, sessions categorized as `study`, and a 14-day lookback window before the assignment or exam
 
 ## Tech Stack
 
@@ -46,6 +42,7 @@ The core study tracker runs in the browser using HTML, CSS, JavaScript, and `loc
 - `CSS`
 - `JavaScript`
 - Browser `localStorage`
+- Supabase Auth and data storage
 - Render Web Service
 - Node.js API routes
 
@@ -56,17 +53,19 @@ index.html
 src/
   app.bundle.js
   styles.css
+api/
+  study-coach.js
+  study-plan.js
+  google-calendar.js
+supabase/
+  schema.sql
+server.js
+render.yaml
 ```
 
 ## Run Locally
 
-Because this is a static browser app, you can run it very simply. The first screen now asks you to create a local ScholarHQ account before opening the dashboard.
-
-1. Clone or download the repository
-2. Find the index.html file in the project folder once downloaded to your desktop
-3. Right-click to 'Open-with' and select your desired browser
-
-If you prefer, you can also serve it with the same Node server used on Render:
+Use the same Node server used on Render:
 
 ```bash
 npm install
@@ -87,30 +86,44 @@ scholar start
 - `api/study-coach.js` - Render-hosted AI endpoint for the Home page coach
 - `api/study-plan.js` - Render-hosted AI endpoint for the study planner
 - `api/google-calendar.js` - Google OAuth, token refresh, connection status, and Calendar event creation endpoint
-- `server.js` - Node server that serves the static app and AI/API routes
+- `supabase/schema.sql` - account-scoped cloud storage table and row-level security policies
+- `server.js` - Node server that serves the static app and API routes
 - `render.yaml` - Render Blueprint configuration
 
 ## AI Study Coach Setup on Render
 
-This project now includes AI features on the Home page:
+This project includes AI features on the Home page:
 
 - `AI Study Coach`
-- `AI Study Plan` with researched topic guidance from your logged assignments and exams
+- `AI Study Plan` with researched topic guidance from logged assignments and exams
 
 To enable it on Render:
 
 1. Create a Render Web Service from this repository, or use the included `render.yaml` Blueprint.
-2. Set the Render environment variable named `SCHOLARHQ_API` to your OpenAI API key. Do not commit the key to this repository.
-3. Optionally add `OPENAI_MODEL` if you want to override the default model (`gpt-4o-mini`).
-4. Use the Node runtime. The included Render Blueprint runs `npm install` and starts the app with `npm start`, which launches the ScholarHQ command runner with `scholar start` behavior.
-5. Redeploy the service after saving environment variables.
+2. Set `OPENAI_API_KEY` or `SCHOLARHQ_API` to your OpenAI API key. `OPENAI_API_KEY` is preferred; `SCHOLARHQ_API` remains supported for existing Render deployments.
+3. Add `SUPABASE_URL`.
+4. Add `SUPABASE_ANON_KEY`.
+5. Optionally add `OPENAI_MODEL` if you want to override the default model.
+6. Use the Node runtime. The included Render Blueprint runs `npm install` and starts the app with `npm start`.
+7. Redeploy the service after saving environment variables.
 
-The frontend sends your study data to Render API routes at `/api/study-coach` and `/api/study-plan`, and the Render server calls the OpenAI API securely from the server side.
+If Render says the OpenAI key is incorrect even though the value looks right, make sure the value is pasted without surrounding quotes. The server trims accidental whitespace and matching quotes before sending the key to OpenAI.
 
+The frontend sends study data to Render API routes at `/api/study-coach` and `/api/study-plan`. The server also accepts the older `/.netlify/functions/study-coach` and `/.netlify/functions/study-plan` paths for compatibility.
+
+## Supabase Accounts + Cloud Sync Setup
+
+1. Create a Supabase project
+2. In Supabase SQL Editor, run `supabase/schema.sql`
+3. Enable Email auth in Supabase Authentication settings
+4. Copy your project URL and anon key
+5. Add `SUPABASE_URL` and `SUPABASE_ANON_KEY` to Render environment variables
+
+After this, each user signs in with email/password, and their sessions, grades, and class gradebooks sync to their own account row.
 
 ## Google Calendar Setup
 
-This project now includes the backend pieces needed for Google Calendar event creation. The frontend Calendar page connects the logged-in ScholarHQ browser account to Google OAuth, checks connection status, and syncs up to five saved study sessions into the user's primary Google Calendar.
+This project includes the backend pieces needed for Google Calendar event creation. The frontend Calendar page connects the logged-in ScholarHQ browser account to Google OAuth, checks connection status, and syncs up to five saved study sessions into the user's primary Google Calendar.
 
 After creating your Google Cloud project:
 
@@ -137,7 +150,7 @@ GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
 GOOGLE_REDIRECT_URI=http://localhost:3000/api/google/callback
 PUBLIC_APP_URL=http://localhost:3000
 GOOGLE_OAUTH_STATE_SECRET=replace-with-a-long-random-string
-GOOGLE_CALENDAR_TIME_ZONE=America/Detroit
+GOOGLE_CALENDAR_TIME_ZONE=America/New_York
 ```
 
 The app requests the narrow `https://www.googleapis.com/auth/calendar.events` scope so ScholarHQ can create and update calendar events without full calendar access. OAuth token exchange and event creation stay on the Node backend; do not put Google client secrets in browser code.
@@ -146,7 +159,7 @@ For this prototype, Google refresh tokens are saved in `.data/google-calendar-to
 
 ## Design Direction
 
-Goal for the website is to be fully functional study tracker/planner designed to help students eliminate the excuses as to why they arent acheiving their academic goals. Allow students to identify their key weaknesses of their study process and eliminate them to succeed.
+Goal for the website is to be a fully functional study tracker/planner designed to help students eliminate the excuses around why they are not achieving their academic goals. It should help students identify the key weaknesses of their study process and eliminate them.
 
 ## Future Ideas
 
@@ -157,12 +170,4 @@ Goal for the website is to be fully functional study tracker/planner designed to
 
 ## Status
 
-This version is currently local-first and browser-based. It now includes a local-only authentication gate so students can create accounts and keep browser data separated, but those accounts are not secure server accounts yet. Do not use real passwords until a backend database and production auth provider are connected. It is designed as a strong foundation for a future full web app or mobile app with authentication, cloud sync, and calendar integrations.
-I also have multiple versions saved to my computer for us to eventuallly push to github, but they all require a backend program to use the AI features in. It costs money, which we do not have yet.
-In order to do so, we need a solid pitch to get accepted into the launch rogram to get funding.
-
-## Plan
-
-Currently we have a onboarding/account creation method. It is just not secure. We need to adjust this to create a actual usable website to go public. Once done, we can start to find a custom domain, trademark, and brand. Everything will cost money including subscriptions for the AI implementation, google calander implementation, Render hosting subscription, and of course custom domain for the Render site. I have added updated plans for the Render hosting subscription into "Discussions"
-
-WOOHOOO MONEY SPENDING!!
+This version supports Supabase-backed account access and per-user cloud sync when configured, while still keeping a local browser cache for resilience. Google Calendar and AI features require backend environment variables on Render. Do not commit real API keys, OAuth secrets, or passwords to the repository.

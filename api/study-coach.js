@@ -1,5 +1,5 @@
 function getOpenAiApiKey() {
-  return process.env.SCHOLARHQ_API || "";
+  return getEnvValue("OPENAI_API_KEY") || getEnvValue("SCHOLARHQ_API");
 }
 
 function extractResponseText(payload) {
@@ -29,6 +29,17 @@ function extractResponseText(payload) {
     })
     .join("\n")
     .trim();
+}
+
+function getEnvValue(name) {
+  const trimmed = String(process.env[name] || "").trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
 }
 
 function stripCodeFences(value) {
@@ -62,13 +73,52 @@ function normalizeCoachResult(parsed, rawText) {
   };
 }
 
+async function getSupabaseUserFromAuthHeader(event) {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+  const authHeader = event.headers.authorization || event.headers.Authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length).trim() : "";
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return {
+      error: "SUPABASE_URL and SUPABASE_ANON_KEY must be configured for authenticated AI access.",
+      statusCode: 500,
+    };
+  }
+
+  if (!token) {
+    return {
+      error: "Authentication is required. Sign in before using AI Study Coach.",
+      statusCode: 401,
+    };
+  }
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    method: "GET",
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    return {
+      error: "Your session is invalid or expired. Sign in again and retry.",
+      statusCode: 401,
+    };
+  }
+
+  const user = await response.json();
+  return { user };
+}
+
 exports.handler = async function (event) {
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 204,
       headers: {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
       },
       body: "",
@@ -94,12 +144,23 @@ exports.handler = async function (event) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        error: "SCHOLARHQ_API is not configured yet. Add it in Render environment variables before using AI Study Coach.",
+        error: "OPENAI_API_KEY or SCHOLARHQ_API is not configured yet. Add it in Render environment variables before using AI Study Coach.",
       }),
     };
   }
 
   try {
+    const authResult = await getSupabaseUserFromAuthHeader(event);
+    if (authResult.error) {
+      return {
+        statusCode: authResult.statusCode || 401,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ error: authResult.error }),
+      };
+    }
+
     const payload = JSON.parse(event.body || "{}");
     const hasData =
       (Array.isArray(payload.recentSessions) && payload.recentSessions.length > 0) ||
