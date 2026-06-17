@@ -5,6 +5,7 @@ const { URL } = require("url");
 
 const { handler: studyCoachHandler } = require("./api/study-coach");
 const { handler: studyPlanHandler } = require("./api/study-plan");
+const { handler: accountsHandler } = require("./api/accounts");
 const {
   handleGoogleCallback,
   handleGoogleConnect,
@@ -18,6 +19,7 @@ const port = Number(process.env.PORT || 3000);
 const apiHandlers = {
   "/api/study-coach": studyCoachHandler,
   "/api/study-plan": studyPlanHandler,
+  "/api/accounts": accountsHandler,
   "/api/google/connect": handleGoogleConnect,
   "/api/google/callback": handleGoogleCallback,
   "/api/google/status": handleGoogleStatus,
