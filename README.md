@@ -87,6 +87,8 @@ scholar start
 - `api/study-coach.js` - Render-hosted AI endpoint for the Home page coach
 - `api/study-plan.js` - Render-hosted AI endpoint for the study planner
 - `api/google-calendar.js` - Google OAuth, token refresh, connection status, and Calendar event creation endpoint
+- `api/accounts.js` - local Node endpoint that records created account names/emails to `created-accounts.json` when running through `npm start`
+- `created-accounts.json` - readable local account list for created website accounts; password hashes are intentionally not written here
 - `server.js` - Node server that serves the static app and AI/API routes
 - `render.yaml` - Render Blueprint configuration
 

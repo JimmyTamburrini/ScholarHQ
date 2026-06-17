@@ -27,41 +27,41 @@
   */
 
   /* Main app background color behind every page. */
-  --bg: #181411;
+  --bg: #151719;
   /* Deepest background shade used in dark gradients. */
-  --bg-deep: #0f0b09;
-  /* See-through brown surface for big UI boxes. */
-  --surface: rgba(35, 27, 22, 0.9);
+  --bg-deep: #0b0d0f;
+  /* See-through dark gray surface for big UI boxes. */
+  --surface: rgba(32, 35, 38, 0.92);
   /* Solid card/input background when a stronger box is needed. */
-  --surface-strong: #2b211b;
+  --surface-strong: #24282c;
   /* Very light overlay for soft inner boxes. */
-  --surface-soft: rgba(240, 232, 219, 0.06);
+  --surface-soft: rgba(232, 238, 235, 0.06);
   /* Main readable text color. */
-  --text: #f4ede3;
+  --text: #f4f7f5;
   /* Softer text color for descriptions and small details. */
-  --muted: #c0b09d;
+  --muted: #b9c3bd;
   /* Thin divider line color. */
-  --line: rgba(233, 220, 198, 0.12);
-  /* Burgundy accent for warnings, badges, and highlights. */
-  --accent: #7b2d2f;
-  /* Darker burgundy accent for hover/strong states. */
-  --accent-strong: #5f1f21;
-  /* Transparent burgundy fill for small pills/badges. */
-  --accent-soft: rgba(123, 45, 47, 0.18);
+  --line: rgba(220, 230, 224, 0.13);
+  /* Green accent for buttons, badges, and highlights. */
+  --accent: #2f9e44;
+  /* Darker green accent for hover/strong states. */
+  --accent-strong: #238636;
+  /* Transparent green fill for small pills/badges. */
+  --accent-soft: rgba(47, 158, 68, 0.18);
   /* Green action color for main buttons and active timer dot. */
-  --forest: #3a4a32;
+  --forest: #2f9e44;
   /* Blue-gray active navigation color. */
   --navy: #2a3444;
-  /* Gold highlight color for labels, chart lines, and scrollbars. */
-  --gold: #b08a4b;
-  /* Brown accent used in gradients and selected filter chips. */
-  --oak: #6c4c34;
-  /* Lighter brown accent for hover gradients. */
-  --oak-light: #8b6647;
+  /* Light green highlight color for labels, chart lines, and scrollbars. */
+  --gold: #74c69d;
+  /* Green accent used in gradients and selected filter chips. */
+  --oak: #2f9e44;
+  /* Lighter green accent for hover gradients. */
+  --oak-light: #52b788;
   /* Large soft shadow under cards and panels. */
   --shadow: 0 28px 70px rgba(0, 0, 0, 0.35);
   /* Subtle border around cards, panels, and controls. */
-  --frame: rgba(230, 216, 194, 0.12);
+  --frame: rgba(220, 230, 224, 0.14);
   /* Biggest rounded corners for major UI boxes. */
   --radius-xl: 30px;
   /* Medium rounded corners for cards inside panels. */
@@ -91,20 +91,20 @@ body {
   background:
     radial-gradient(
       circle at top left,
-      rgba(176, 138, 75, 0.14),
+      rgba(47, 158, 68, 0.16),
       transparent 24%
     ),
     radial-gradient(
       circle at top right,
-      rgba(123, 45, 47, 0.12),
+      rgba(82, 183, 136, 0.12),
       transparent 22%
     ),
     radial-gradient(
       circle at bottom left,
-      rgba(108, 76, 52, 0.14),
+      rgba(52, 58, 64, 0.34),
       transparent 26%
     ),
-    linear-gradient(160deg, #0f0b09 0%, #18120f 42%, #211915 100%);
+    linear-gradient(160deg, #0b0d0f 0%, #151719 45%, #202326 100%);
   scrollbar-width: thin;
   scrollbar-color: var(--gold) rgba(255, 255, 255, 0.06);
 }
@@ -1832,3 +1832,34 @@ button:hover {
   098. Material Yellow: #FFEB3B
   099. Material Amber: #FFC107
   100. Material Orange: #FF9800
+*/
+
+.calendar-roadmap {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 20px;
+}
+
+.calendar-roadmap > div {
+  border: 1px solid var(--frame);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  padding: 16px;
+}
+
+.calendar-roadmap strong {
+  display: block;
+  margin: 8px 0 6px;
+}
+
+.calendar-roadmap p {
+  color: var(--muted);
+  margin: 0;
+}
+
+@media (max-width: 820px) {
+  .calendar-roadmap {
+    grid-template-columns: 1fr;
+  }
+}

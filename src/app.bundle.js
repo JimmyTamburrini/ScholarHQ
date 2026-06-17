@@ -156,6 +156,32 @@
     return String(hash);
   }
 
+
+  async function syncAccountFile(account) {
+    if (!account || !account.id || window.location.protocol === "file:") {
+      return;
+    }
+
+    try {
+      await window.fetch("/api/accounts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: account.id,
+          name: account.name,
+          email: account.email,
+          school: account.school,
+          createdAt: account.createdAt,
+          lastLoginAt: account.lastLoginAt,
+        }),
+      });
+    } catch (_error) {
+      // The local browser account still works if the optional server-side account list is unavailable.
+    }
+  }
+
   function setActiveUser(account) {
     activeUser = account;
     if (account) {
@@ -2501,10 +2527,10 @@
       <section class="page-intro compact">
         <div>
           <p class="eyebrow">Calendar Hub</p>
-          <h1>Send ScholarHQ study blocks to Google Calendar.</h1>
+          <h1>Plan, connect, and sync your study schedule.</h1>
         </div>
         <p class="hero-text">
-          Connect your Google Calendar, then sync saved study sessions as calendar events. AI-generated study plans can use this same backend route when you are ready to turn planner blocks into scheduled events.
+          This page now matches the README plan: connect Google Calendar with OAuth, keep credentials on the Node/Render backend, and push saved ScholarHQ study sessions into your primary calendar.
         </p>
       </section>
 
@@ -2512,24 +2538,42 @@
         <article class="panel feature-panel">
           <div class="panel-header">
             <div>
-              <p class="eyebrow">Google Calendar API</p>
-              <h2>How this connection works</h2>
+              <p class="eyebrow">Calendar Plan</p>
+              <h2>What this page is built to do</h2>
             </div>
-            <p class="panel-copy">ScholarHQ sends you through Google OAuth, saves refresh tokens on the server, and creates events from the backend so browser code never sees your Google client secret.</p>
+            <p class="panel-copy">The README calls for Google OAuth, saved-session syncing, and future smart scheduling. This workspace now shows the current working flow and the upcoming roadmap in one place.</p>
           </div>
 
           <div class="feature-list">
             <div class="feature-item">
-              <strong>1. Connect</strong>
-              <p>Use the Google Cloud OAuth client you created and authorize the Calendar Events scope.</p>
+              <strong>1. Connect Google OAuth</strong>
+              <p>Use the configured Google Cloud OAuth client and authorize the narrow Calendar Events scope.</p>
             </div>
             <div class="feature-item">
-              <strong>2. Generate or log sessions</strong>
-              <p>Study sessions already saved in ScholarHQ become the event payload Google Calendar expects.</p>
+              <strong>2. Sync saved study sessions</strong>
+              <p>ScholarHQ turns your saved sessions into calendar event payloads and sends them from the server.</p>
             </div>
             <div class="feature-item">
-              <strong>3. Sync events</strong>
-              <p>The server refreshes your Google access token when needed and inserts events into your primary calendar.</p>
+              <strong>3. Protect secrets on the backend</strong>
+              <p>OAuth token exchange, token refresh, and event creation stay inside the Node/Render API routes.</p>
+            </div>
+          </div>
+
+          <div class="calendar-roadmap">
+            <div>
+              <span class="insight-label">Current</span>
+              <strong>Saved-session sync</strong>
+              <p>Connect Google Calendar and send up to five saved study sessions at a time.</p>
+            </div>
+            <div>
+              <span class="insight-label">Next</span>
+              <strong>AI study blocks</strong>
+              <p>Turn generated study plans into scheduled events once planner blocks are saved as sessions.</p>
+            </div>
+            <div>
+              <span class="insight-label">Future</span>
+              <strong>Two-way calendar sync</strong>
+              <p>Read availability, avoid conflicts, and schedule around exams when production auth is ready.</p>
             </div>
           </div>
         </article>
@@ -3682,6 +3726,7 @@
         };
 
         saveAccounts(accounts.concat(account));
+        await syncAccountFile(account);
         setActiveUser(account);
         copyLegacyStorageToAccount(account.id);
         state.currentUser = account;
@@ -3702,6 +3747,7 @@
       saveAccounts(accounts.map(function (account) {
         return account.id === updatedAccount.id ? updatedAccount : account;
       }));
+      await syncAccountFile(updatedAccount);
       setActiveUser(updatedAccount);
       copyLegacyStorageToAccount(updatedAccount.id);
       state.currentUser = updatedAccount;
@@ -3894,7 +3940,7 @@
       return;
     }
 
-    if (action === "navigate" && target.dataset.page) {
+    if ((action === "navigate" || action === "open-calendar") && target.dataset.page) {
       state.currentPage = target.dataset.page;
       if (target.dataset.page !== "classes") {
         state.selectedClass = null;
