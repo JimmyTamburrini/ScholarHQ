@@ -1415,6 +1415,27 @@
 
   // PAGE RENDERERS
   // Each render function below returns an HTML string for one piece of the UI.
+  function renderLandingPage() {
+    return `
+      <main class="landing-shell">
+        <section class="landing-card panel" aria-labelledby="landing-title">
+          <div class="landing-logo" aria-label="ScholarHQ logo placeholder">
+            <span>SHQ</span>
+          </div>
+          <p class="eyebrow">[INSERT BRANDING LINE]</p>
+          <h1 id="landing-title">[INSERT WEBSITE NAME]</h1>
+          <p class="hero-text landing-description">
+            [INSERT SHORT WEBSITE DESCRIPTION]
+          </p>
+          <div class="landing-actions" aria-label="Account options">
+            <button class="primary-button" type="button" data-action="switch-auth" data-mode="login">Log In</button>
+            <button class="ghost-button" type="button" data-action="switch-auth" data-mode="signup">Create Account</button>
+          </div>
+        </section>
+      </main>
+    `;
+  }
+
   function renderAuthPage(mode, draft, errors) {
     const isSignup = mode === "signup";
     const accountCount = loadAccounts().length;
@@ -3346,7 +3367,7 @@
   // This object is the "single source of truth" for what the UI should show.
   const state = {
     currentUser: activeUser,
-    authMode: "login",
+    authMode: "landing",
     authErrors: {},
     authDraft: { name: "", school: "", email: "", password: "" },
     sessions: activeUser ? loadSessions() : [],
@@ -3631,7 +3652,9 @@
   // Main render function. Rebuilds the currently selected page from app state.
   function render() {
     if (!state.currentUser) {
-      appRoot.innerHTML = renderAuthPage(state.authMode, state.authDraft, state.authErrors);
+      appRoot.innerHTML = state.authMode === "landing"
+        ? renderLandingPage()
+        : renderAuthPage(state.authMode, state.authDraft, state.authErrors);
       return;
     }
 
@@ -3927,6 +3950,7 @@
     if (action === "logout") {
       setActiveUser(null);
       state.currentUser = null;
+      state.authMode = "landing";
       state.sessions = [];
       state.grades = [];
       state.classGradebooks = {};
