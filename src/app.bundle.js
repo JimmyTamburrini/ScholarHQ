@@ -3400,6 +3400,16 @@
     flashTimeoutId: null,
   };
 
+  function dismissFlashMessage() {
+    state.flashMessage = "";
+    state.flashTimeoutId = null;
+
+    const flashBanner = document.querySelector(".flash-banner");
+    if (flashBanner) {
+      flashBanner.remove();
+    }
+  }
+
   function showFlashMessage(message) {
     state.flashMessage = message;
     render();
@@ -3408,11 +3418,7 @@
       window.clearTimeout(state.flashTimeoutId);
     }
 
-    state.flashTimeoutId = window.setTimeout(function () {
-      state.flashMessage = "";
-      state.flashTimeoutId = null;
-      render();
-    }, 3200);
+    state.flashTimeoutId = window.setTimeout(dismissFlashMessage, 3200);
   }
 
   function validateDraft(draft) {
