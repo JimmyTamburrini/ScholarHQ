@@ -1419,9 +1419,7 @@
     return `
       <main class="landing-shell">
         <section class="landing-card panel" aria-labelledby="landing-title">
-          <div class="landing-logo" aria-label="ScholarHQ logo placeholder">
-            <span>SHQ</span>
-          </div>
+          <img class="landing-logo" src="./ScholarHQ%20Branding%20Logo.png" alt="ScholarHQ logo" />
           <p class="eyebrow">[INSERT BRANDING LINE]</p>
           <h1 id="landing-title">[INSERT WEBSITE NAME]</h1>
           <p class="hero-text landing-description">
@@ -1517,8 +1515,11 @@
     return `
       <nav class="site-nav" aria-label="Primary navigation">
         <div class="brand-block">
-          <p class="eyebrow">Study Tracker</p>
-          <h2>ScholarHQ</h2>
+          <img class="brand-logo" src="./ScholarHQ%20Branding%20Logo.png" alt="ScholarHQ logo" />
+          <div>
+            <p class="eyebrow">Study Tracker</p>
+            <h2>ScholarHQ</h2>
+          </div>
         </div>
         <div class="nav-account">
           <span>Signed in as <strong>${escapeHtml((currentUser && currentUser.name) || "Student")}</strong></span>
