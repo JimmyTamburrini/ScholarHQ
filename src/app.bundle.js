@@ -1420,11 +1420,7 @@
       <main class="landing-shell">
         <section class="landing-card panel" aria-labelledby="landing-title">
           <img class="landing-logo" src="./ScholarHQ%20Branding%20Logo.png" alt="ScholarHQ logo" />
-          <p class="eyebrow">Welcome to ScholarHQ</p>
           <h1 id="landing-title">Welcome to ScholarHQ</h1>
-          <p class="hero-text landing-description">
-            Welcome to ScholarHQ
-          </p>
           <div class="landing-actions" aria-label="Account options">
             <button class="primary-button" type="button" data-action="switch-auth" data-mode="login">Log In</button>
             <button class="ghost-button" type="button" data-action="switch-auth" data-mode="signup">Create Account</button>
