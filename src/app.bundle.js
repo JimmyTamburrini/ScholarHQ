@@ -1419,12 +1419,7 @@
     return `
       <main class="landing-shell">
         <section class="landing-card panel" aria-labelledby="landing-title">
-          <img class="landing-logo" src="./ScholarHQ%20Branding%20Logo.png" alt="ScholarHQ logo" />
-          <p class="eyebrow">Student Productivity Hub</p>
-          <h1 id="landing-title">Scholar HQ</h1>
-          <p class="hero-text landing-description">
-            A student productivity app built to sharpen study habits, organize every session, and turn focused effort into visible progress.
-          </p>
+          <h1 id="landing-title">Welcome to ScholarHQ</h1>
           <div class="landing-actions" aria-label="Account options">
             <button class="primary-button" type="button" data-action="switch-auth" data-mode="login">Log In</button>
             <button class="ghost-button" type="button" data-action="switch-auth" data-mode="signup">Create Account</button>
