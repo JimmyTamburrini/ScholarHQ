@@ -3940,7 +3940,7 @@
       return;
     }
 
-    if (action === "navigate" && target.dataset.page) {
+    if ((action === "navigate" || action === "open-calendar") && target.dataset.page) {
       state.currentPage = target.dataset.page;
       if (target.dataset.page !== "classes") {
         state.selectedClass = null;
