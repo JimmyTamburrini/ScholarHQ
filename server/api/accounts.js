@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const accountListPath = path.join(__dirname, "..", "created-accounts.json");
+const accountListPath = path.join(__dirname, "..", "..", "data", "created-accounts.json");
 
 function sendJson(statusCode, payload) {
   return {

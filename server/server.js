@@ -13,7 +13,7 @@ const {
   handleGoogleStatus,
 } = require("./api/google-calendar");
 
-const rootDir = __dirname;
+const rootDir = path.join(__dirname, "..", "client");
 const port = Number(process.env.PORT || 3000);
 
 const apiHandlers = {

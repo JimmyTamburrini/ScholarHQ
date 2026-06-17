@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { startServer } = require("../server");
+const { startServer } = require("../server/server");
 
 const command = process.argv[2] || "start";
 

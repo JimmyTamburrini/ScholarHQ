@@ -52,10 +52,20 @@ The core study tracker runs in the browser using HTML, CSS, JavaScript, and `loc
 ## Project Structure
 
 ```text
-index.html
-src/
-  app.bundle.js
-  styles.css
+client/
+  index.html
+  assets/
+  src/
+server/
+  server.js
+  api/
+scripts/
+  scholar.js
+data/
+  created-accounts.json
+docs/
+  demos/
+  business/
 ```
 
 ## Run Locally
@@ -63,7 +73,7 @@ src/
 Because this is a static browser app, you can run it very simply. The first screen now asks you to create a local ScholarHQ account before opening the dashboard.
 
 1. Clone or download the repository
-2. Find the index.html file in the project folder once downloaded to your desktop
+2. Find the client/index.html file in the project folder once downloaded to your desktop
 3. Right-click to 'Open-with' and select your desired browser
 
 If you prefer, you can also serve it with the same Node server used on Render:
@@ -81,15 +91,15 @@ scholar start
 
 ## Main Files
 
-- `index.html` - app entry point
-- `src/app.bundle.js` - app logic, rendering, state, storage, and interactivity
-- `src/styles.css` - visual design, layout, theme, and responsive styling
-- `api/study-coach.js` - Render-hosted AI endpoint for the Home page coach
-- `api/study-plan.js` - Render-hosted AI endpoint for the study planner
-- `api/google-calendar.js` - Google OAuth, token refresh, connection status, and Calendar event creation endpoint
-- `api/accounts.js` - local Node endpoint that records created account names/emails to `created-accounts.json` when running through `npm start`
-- `created-accounts.json` - readable local account list for created website accounts; password hashes are intentionally not written here
-- `server.js` - Node server that serves the static app and AI/API routes
+- `client/index.html` - app entry point
+- `client/src/app.bundle.js` - app logic, rendering, state, storage, and interactivity
+- `client/src/styles.css` - visual design, layout, theme, and responsive styling
+- `server/api/study-coach.js` - Render-hosted AI endpoint for the Home page coach
+- `server/api/study-plan.js` - Render-hosted AI endpoint for the study planner
+- `server/api/google-calendar.js` - Google OAuth, token refresh, connection status, and Calendar event creation endpoint
+- `server/api/accounts.js` - local Node endpoint that records created account names/emails to `data/created-accounts.json` when running through `npm start`
+- `data/created-accounts.json` - readable local account list for created website accounts; password hashes are intentionally not written here
+- `server/server.js` - Node server that serves the static app and AI/API routes
 - `render.yaml` - Render Blueprint configuration
 
 ## AI Study Coach Setup on Render
