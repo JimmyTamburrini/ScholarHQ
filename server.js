@@ -9,7 +9,6 @@ const { handler: accountsHandler } = require("./api/accounts");
 const { handler: authHandler } = require("./api/auth");
 const { handler: studySessionsHandler } = require("./api/study-sessions");
 const { handler: profileHandler } = require("./api/profile");
-const { handler: securityStatusHandler } = require("./api/security-status");
 const {
   handleGoogleCallback,
   handleGoogleConnect,
@@ -31,7 +30,6 @@ const apiHandlers = {
   "/api/auth/me": authHandler,
   "/api/study-sessions": studySessionsHandler,
   "/api/profile": profileHandler,
-  "/api/security/status": securityStatusHandler,
   "/api/google/connect": handleGoogleConnect,
   "/api/google/callback": handleGoogleCallback,
   "/api/google/status": handleGoogleStatus,

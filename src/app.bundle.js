@@ -3912,9 +3912,8 @@
           return;
         }
 
-        let authResult = null;
         try {
-          authResult = await callAuthApi("/api/auth/signup", {
+          await callAuthApi("/api/auth/signup", {
             name: input.name,
             full_name: input.name,
             school: input.school,
@@ -3922,7 +3921,7 @@
             password: input.password,
           });
         } catch (error) {
-          state.authErrors = { form: error.message || "Could not create your secure account. If this email already exists, use Log In." };
+          state.authErrors = { form: error.message || "Could not create your secure account." };
           render();
           return;
         }
@@ -3955,19 +3954,16 @@
         return;
       }
 
-      let authResult = null;
-      try {
-        authResult = await callAuthApi("/api/auth/login", { email: input.email, password: input.password });
-      } catch (error) {
-        if (window.location.protocol !== "file:") {
-          state.authErrors = { form: error.message || "Could not start a secure session." };
-          render();
-          return;
-        }
+      if (!existing || existing.passwordHash !== await hashPassword(input.password, existing.salt)) {
+        state.authErrors = { form: "Email or password did not match an account." };
+        render();
+        return;
       }
 
-      if (window.location.protocol === "file:" && (!existing || existing.passwordHash !== await hashPassword(input.password, existing.salt))) {
-        state.authErrors = { form: "Email or password did not match an account." };
+      try {
+        await callAuthApi("/api/auth/login", { email: input.email, password: input.password });
+      } catch (error) {
+        state.authErrors = { form: error.message || "Could not start a secure session." };
         render();
         return;
       }
