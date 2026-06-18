@@ -1166,6 +1166,24 @@ button:hover {
   border: 1px solid var(--frame);
 }
 
+.button-link {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font: inherit;
+  justify-content: center;
+  padding: 12px 18px;
+  text-decoration: none;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.button-link:hover {
+  transform: translateY(-1px);
+}
+
 /* Low-emphasis text button, often delete/cancel. */
 .ghost-button {
   background: transparent;
