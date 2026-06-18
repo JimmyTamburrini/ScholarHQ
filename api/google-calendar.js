@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const { requireUser } = require("./security");
 
 const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -320,10 +321,11 @@ async function handleConnect(event) {
     return sendJson(500, { error: configError });
   }
 
-  const userId = String((event.queryStringParameters && event.queryStringParameters.userId) || "").trim();
-  if (!userId) {
-    return sendJson(400, { error: "A ScholarHQ userId is required before connecting Google Calendar." });
+  const auth = requireUser(event);
+  if (auth.error) {
+    return auth.error;
   }
+  const userId = auth.user.id;
 
   const authUrl = new URL(GOOGLE_AUTH_URL);
   authUrl.searchParams.set("client_id", config.clientId);
@@ -362,10 +364,11 @@ async function handleCallback(event) {
 }
 
 async function handleStatus(event) {
-  const userId = String((event.queryStringParameters && event.queryStringParameters.userId) || "").trim();
-  if (!userId) {
-    return sendJson(400, { error: "A ScholarHQ userId is required." });
+  const auth = requireUser(event);
+  if (auth.error) {
+    return auth.error;
   }
+  const userId = auth.user.id;
 
   const tokens = getUserTokens(userId);
   return sendJson(200, {
@@ -388,6 +391,17 @@ async function handleEvents(event) {
     };
   }
 
+  if (event.httpMethod === "DELETE") {
+    const auth = requireUser(event);
+    if (auth.error) {
+      return auth.error;
+    }
+    const store = readTokenStore();
+    delete store[auth.user.id];
+    writeTokenStore(store);
+    return sendJson(200, { ok: true });
+  }
+
   if (event.httpMethod !== "POST") {
     return sendJson(405, { error: "Method not allowed." });
   }
@@ -398,13 +412,13 @@ async function handleEvents(event) {
     return sendJson(500, { error: configError });
   }
 
-  const body = parseJsonBody(event);
-  const userId = String(body.userId || "").trim();
-  const sessions = Array.isArray(body.sessions) ? body.sessions.slice(0, 10) : [];
-
-  if (!userId) {
-    return sendJson(400, { error: "A ScholarHQ userId is required." });
+  const auth = requireUser(event);
+  if (auth.error) {
+    return auth.error;
   }
+  const body = parseJsonBody(event);
+  const userId = auth.user.id;
+  const sessions = Array.isArray(body.sessions) ? body.sessions.slice(0, 10) : [];
 
   if (!sessions.length) {
     return sendJson(400, { error: "Choose at least one study session to sync." });

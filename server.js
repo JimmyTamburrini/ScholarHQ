@@ -6,6 +6,9 @@ const { URL } = require("url");
 const { handler: studyCoachHandler } = require("./api/study-coach");
 const { handler: studyPlanHandler } = require("./api/study-plan");
 const { handler: accountsHandler } = require("./api/accounts");
+const { handler: authHandler } = require("./api/auth");
+const { handler: studySessionsHandler } = require("./api/study-sessions");
+const { handler: profileHandler } = require("./api/profile");
 const {
   handleGoogleCallback,
   handleGoogleConnect,
@@ -20,10 +23,18 @@ const apiHandlers = {
   "/api/study-coach": studyCoachHandler,
   "/api/study-plan": studyPlanHandler,
   "/api/accounts": accountsHandler,
+  "/api/auth/signup": authHandler,
+  "/api/auth/login": authHandler,
+  "/api/auth/logout": authHandler,
+  "/api/auth/forgot-password": authHandler,
+  "/api/auth/me": authHandler,
+  "/api/study-sessions": studySessionsHandler,
+  "/api/profile": profileHandler,
   "/api/google/connect": handleGoogleConnect,
   "/api/google/callback": handleGoogleCallback,
   "/api/google/status": handleGoogleStatus,
   "/api/google/events": handleGoogleEvents,
+  "/api/google/disconnect": handleGoogleEvents,
 };
 
 const mimeTypes = {
@@ -39,6 +50,18 @@ const mimeTypes = {
   ".webp": "image/webp",
 };
 
+function getSecurityHeaders(contentType) {
+  return {
+    "Content-Type": contentType,
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "X-Frame-Options": "DENY"
+  };
+}
+
 function sendResponse(res, statusCode, headers, body) {
   res.writeHead(statusCode, headers || {});
   res.end(body || "");
@@ -48,7 +71,7 @@ function sendJson(res, statusCode, payload) {
   sendResponse(
     res,
     statusCode,
-    { "Content-Type": "application/json; charset=utf-8" },
+    getSecurityHeaders("application/json; charset=utf-8"),
     JSON.stringify(payload)
   );
 }
@@ -81,6 +104,7 @@ async function handleApiRequest(req, res, handler) {
       headers: req.headers,
       queryStringParameters: Object.fromEntries(new URL(req.url || "/", "http://localhost").searchParams.entries()),
       body: body,
+      path: new URL(req.url || "/", "http://localhost").pathname,
     });
 
     sendResponse(res, result.statusCode || 200, result.headers, result.body);
@@ -129,9 +153,7 @@ function handleStaticRequest(req, res, pathname) {
   }
 
   const extension = path.extname(filePath).toLowerCase();
-  const headers = {
-    "Content-Type": mimeTypes[extension] || "application/octet-stream",
-  };
+  const headers = getSecurityHeaders(mimeTypes[extension] || "application/octet-stream");
 
   fs.createReadStream(filePath)
     .on("error", function () {
