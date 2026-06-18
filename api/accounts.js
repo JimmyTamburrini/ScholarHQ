@@ -52,6 +52,25 @@ function sanitizeAccount(account) {
   };
 }
 
+function recordCreatedAccount(account) {
+  const sanitized = sanitizeAccount(account);
+  if (!sanitized.id || !sanitized.email) {
+    return null;
+  }
+
+  const accounts = readAccountsFile();
+  const nextAccounts = accounts.filter(function (savedAccount) {
+    return savedAccount.id !== sanitized.id && savedAccount.email !== sanitized.email;
+  });
+  nextAccounts.push(sanitized);
+  nextAccounts.sort(function (a, b) {
+    return String(a.createdAt).localeCompare(String(b.createdAt));
+  });
+
+  writeAccountsFile(nextAccounts);
+  return sanitized;
+}
+
 async function handler(event) {
   if (event.httpMethod === "OPTIONS") {
     return {
@@ -78,18 +97,14 @@ async function handler(event) {
     return sendJson(400, { error: "Account id and email are required." });
   }
 
-  const accounts = readAccountsFile();
-  const nextAccounts = accounts.filter(function (savedAccount) {
-    return savedAccount.id !== account.id && savedAccount.email !== account.email;
-  });
-  nextAccounts.push(account);
-  nextAccounts.sort(function (a, b) {
-    return String(a.createdAt).localeCompare(String(b.createdAt));
-  });
+  const recordedAccount = recordCreatedAccount(account);
+  if (!recordedAccount) {
+    return sendJson(400, { error: "Account id and email are required." });
+  }
 
-  writeAccountsFile(nextAccounts);
-  return sendJson(200, { account, accounts: nextAccounts });
+  return sendJson(200, { account: recordedAccount, accounts: readAccountsFile() });
 }
 
 exports.handler = handler;
 exports.accountListPath = accountListPath;
+exports.recordCreatedAccount = recordCreatedAccount;
