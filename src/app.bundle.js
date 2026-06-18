@@ -3757,7 +3757,7 @@
       });
 
       if (state.authMode === "signup") {
-        if (existing) {
+        if (existing && window.location.protocol === "file:") {
           state.authErrors = { email: "An account with this email already exists on this browser." };
           render();
           return;
@@ -3780,7 +3780,7 @@
         const salt = generateSalt();
         const now = new Date().toISOString();
         const account = {
-          id: generateId(),
+          id: authResult && authResult.user && authResult.user.id ? authResult.user.id : generateId(),
           name: input.name,
           email: input.email,
           school: input.school,
@@ -3790,7 +3790,10 @@
           lastLoginAt: now,
         };
 
-        saveAccounts(accounts.concat(account));
+        const nextAccounts = accounts.filter(function (savedAccount) {
+          return savedAccount.email !== account.email && savedAccount.id !== account.id;
+        }).concat(account);
+        saveAccounts(nextAccounts);
         await syncAccountFile(account);
         setActiveUser(account);
         copyLegacyStorageToAccount(account.id);
@@ -3798,7 +3801,7 @@
         state.authErrors = {};
         state.authDraft = { name: "", school: "", email: "", password: "" };
         reloadAccountData();
-        showFlashMessage(`Welcome to ScholarHQ, ${account.name}. Your account workspace is ready.`);
+        showFlashMessage(`Welcome to ScholarHQ, ${account.name}. Your secure account workspace is ready.`);
         return;
       }
 
@@ -3816,10 +3819,21 @@
         return;
       }
 
-      const updatedAccount = { ...existing, lastLoginAt: new Date().toISOString() };
-      saveAccounts(accounts.map(function (account) {
-        return account.id === updatedAccount.id ? updatedAccount : account;
-      }));
+      const serverUser = authResult && authResult.user ? authResult.user : null;
+      const salt = existing ? existing.salt : generateSalt();
+      const updatedAccount = {
+        id: serverUser && serverUser.id ? serverUser.id : existing.id,
+        name: serverUser && serverUser.full_name ? serverUser.full_name : (existing && existing.name) || "Student",
+        email: serverUser && serverUser.email ? serverUser.email : existing.email,
+        school: (existing && existing.school) || "",
+        passwordHash: existing ? existing.passwordHash : await hashPassword(input.password, salt),
+        salt: salt,
+        createdAt: (existing && existing.createdAt) || (serverUser && serverUser.created_at) || new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+      };
+      saveAccounts(accounts.filter(function (account) {
+        return account.email !== updatedAccount.email && account.id !== updatedAccount.id;
+      }).concat(updatedAccount));
       await syncAccountFile(updatedAccount);
       setActiveUser(updatedAccount);
       copyLegacyStorageToAccount(updatedAccount.id);
