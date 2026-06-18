@@ -157,6 +157,25 @@
   }
 
 
+
+  async function callAuthApi(path, payload) {
+    if (window.location.protocol === "file:") {
+      return null;
+    }
+
+    const response = await window.fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify(payload || {}),
+    });
+    const result = await response.json().catch(function () { return {}; });
+    if (!response.ok) {
+      throw new Error(result.error || "Authentication failed. Please try again.");
+    }
+    return result;
+  }
+
   async function syncAccountFile(account) {
     if (!account || !account.id || window.location.protocol === "file:") {
       return;
@@ -1171,6 +1190,7 @@
 
     try {
       const response = await window.fetch("/api/study-coach", {
+        credentials: "same-origin",
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1211,6 +1231,7 @@
 
     try {
       const response = await window.fetch("/api/study-plan", {
+        credentials: "same-origin",
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1266,7 +1287,7 @@
       return;
     }
 
-    window.location.href = `/api/google/connect?userId=${encodeURIComponent(state.currentUser.id)}`;
+    window.location.href = "/api/google/connect";
   }
 
   async function requestCalendarStatus() {
@@ -1279,7 +1300,7 @@
     render();
 
     try {
-      const response = await window.fetch(`/api/google/status?userId=${encodeURIComponent(state.currentUser.id)}`);
+      const response = await window.fetch("/api/google/status", { credentials: "same-origin" });
       const payload = await response.json().catch(function () {
         return {};
       });
@@ -1321,6 +1342,7 @@
 
     try {
       const response = await window.fetch("/api/google/events", {
+        credentials: "same-origin",
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -3735,8 +3757,23 @@
       });
 
       if (state.authMode === "signup") {
-        if (existing) {
+        if (existing && window.location.protocol === "file:") {
           state.authErrors = { email: "An account with this email already exists on this browser." };
+          render();
+          return;
+        }
+
+        let authResult = null;
+        try {
+          authResult = await callAuthApi("/api/auth/signup", {
+            name: input.name,
+            full_name: input.name,
+            school: input.school,
+            email: input.email,
+            password: input.password,
+          });
+        } catch (error) {
+          state.authErrors = { form: error.message || "Could not create your secure account. If this email already exists, use Log In." };
           render();
           return;
         }
@@ -3744,7 +3781,7 @@
         const salt = generateSalt();
         const now = new Date().toISOString();
         const account = {
-          id: generateId(),
+          id: authResult && authResult.user && authResult.user.id ? authResult.user.id : generateId(),
           name: input.name,
           email: input.email,
           school: input.school,
@@ -3754,7 +3791,10 @@
           lastLoginAt: now,
         };
 
-        saveAccounts(accounts.concat(account));
+        const nextAccounts = accounts.filter(function (savedAccount) {
+          return savedAccount.email !== account.email && savedAccount.id !== account.id;
+        }).concat(account);
+        saveAccounts(nextAccounts);
         await syncAccountFile(account);
         setActiveUser(account);
         copyLegacyStorageToAccount(account.id);
@@ -3762,20 +3802,42 @@
         state.authErrors = {};
         state.authDraft = { name: "", school: "", email: "", password: "" };
         reloadAccountData();
-        showFlashMessage(`Welcome to ScholarHQ, ${account.name}. Your account workspace is ready.`);
+        showFlashMessage(`Welcome to ScholarHQ, ${account.name}. Your secure account workspace is ready.`);
         return;
       }
 
-      if (!existing || existing.passwordHash !== await hashPassword(input.password, existing.salt)) {
-        state.authErrors = { form: "Email or password did not match a local account." };
+      let authResult = null;
+      try {
+        authResult = await callAuthApi("/api/auth/login", { email: input.email, password: input.password });
+      } catch (error) {
+        if (window.location.protocol !== "file:") {
+          state.authErrors = { form: error.message || "Could not start a secure session." };
+          render();
+          return;
+        }
+      }
+
+      if (window.location.protocol === "file:" && (!existing || existing.passwordHash !== await hashPassword(input.password, existing.salt))) {
+        state.authErrors = { form: "Email or password did not match an account." };
         render();
         return;
       }
 
-      const updatedAccount = { ...existing, lastLoginAt: new Date().toISOString() };
-      saveAccounts(accounts.map(function (account) {
-        return account.id === updatedAccount.id ? updatedAccount : account;
-      }));
+      const serverUser = authResult && authResult.user ? authResult.user : null;
+      const salt = existing ? existing.salt : generateSalt();
+      const updatedAccount = {
+        id: serverUser && serverUser.id ? serverUser.id : existing.id,
+        name: serverUser && serverUser.full_name ? serverUser.full_name : (existing && existing.name) || "Student",
+        email: serverUser && serverUser.email ? serverUser.email : existing.email,
+        school: (existing && existing.school) || "",
+        passwordHash: existing ? existing.passwordHash : await hashPassword(input.password, salt),
+        salt: salt,
+        createdAt: (existing && existing.createdAt) || (serverUser && serverUser.created_at) || new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+      };
+      saveAccounts(accounts.filter(function (account) {
+        return account.email !== updatedAccount.email && account.id !== updatedAccount.id;
+      }).concat(updatedAccount));
       await syncAccountFile(updatedAccount);
       setActiveUser(updatedAccount);
       copyLegacyStorageToAccount(updatedAccount.id);
@@ -3948,6 +4010,7 @@
     }
 
     if (action === "logout") {
+      callAuthApi("/api/auth/logout", {}).catch(function () {});
       setActiveUser(null);
       state.currentUser = null;
       state.authMode = "landing";

@@ -1,5 +1,7 @@
+const { requireUser, rateLimit, logAiUsage, getDailyAiUsage } = require("./security");
+
 function getOpenAiApiKey() {
-  return process.env.SCHOLARHQ_API || "";
+  return process.env.OPENAI_API_KEY || process.env.SCHOLARHQ_API || "";
 }
 
 function extractResponseText(payload) {
@@ -247,6 +249,24 @@ exports.handler = async function (event) {
     };
   }
 
+  const auth = requireUser(event);
+  if (auth.error) {
+    return auth.error;
+  }
+
+  const limited = rateLimit(event, "study_plan", 12, 60 * 1000, auth.user.id);
+  if (limited) {
+    return limited;
+  }
+
+  if (getDailyAiUsage(auth.user.id) > Number(process.env.AI_DAILY_TOKEN_LIMIT || 50000)) {
+    return {
+      statusCode: 429,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: "Daily AI usage limit reached. Please try again tomorrow." }),
+    };
+  }
+
   const openAiApiKey = getOpenAiApiKey();
 
   if (!openAiApiKey) {
@@ -256,7 +276,7 @@ exports.handler = async function (event) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        error: "SCHOLARHQ_API is not configured yet. Add it in Render environment variables before using AI Study Plan.",
+        error: "OPENAI_API_KEY is not configured yet. Add it in Render environment variables before using AI Study Plan.",
       }),
     };
   }
@@ -343,6 +363,7 @@ exports.handler = async function (event) {
       };
     }
 
+    logAiUsage(auth.user.id, "study_plan", responsePayload.usage || {});
     const rawText = extractResponseText(responsePayload);
     const parsed = parsePlanText(rawText) || tryParseJson(rawText) || buildLooseFallbackPlan(rawText);
     const plan = normalizePlanResult(parsed, rawText);
