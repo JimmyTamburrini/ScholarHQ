@@ -1,6 +1,5 @@
 const crypto = require("crypto");
 const { readDb, writeDb, sendJson, parseJsonBody, publicUser, hashPassword, createToken, cookieHeader, rateLimit, createSession, clearSession, requireUser, isEmail, validateString, nowIso } = require("./security");
-const { recordCreatedAccount } = require("./accounts");
 
 function upsertProfile(db, user) {
   const existing = db.profiles.find((p) => p.user_id === user.id);
@@ -15,7 +14,7 @@ async function handleSignup(event) {
   if (!isEmail(email) || !fullName || password.length < 8 || password.length > 200) return sendJson(400, { error: "Enter a valid email, name, and password of at least 8 characters." });
   const db = readDb(); if (db.users.some((u) => u.email === email)) return sendJson(409, { error: "An account with this email already exists." });
   const salt = crypto.randomBytes(16).toString("hex"); const user = { id: crypto.randomUUID(), email, full_name: fullName, password_hash: hashPassword(password, salt), salt, email_verified: false, verification_token: createToken(), created_at: nowIso(), updated_at: nowIso() };
-  db.users.push(user); upsertProfile(db, user); writeDb(db); recordCreatedAccount({ id: user.id, name: user.full_name, email: user.email, school: String(body.school || ""), createdAt: user.created_at, lastLoginAt: user.created_at }); const token = createSession(user.id);
+  db.users.push(user); upsertProfile(db, user); writeDb(db); const token = createSession(user.id);
   return sendJson(201, { user: publicUser(user), message: "Account created. Email verification token generated for provider setup." }, { "Set-Cookie": cookieHeader(token, 60 * 60 * 24 * 7) });
 }
 async function handleLogin(event) {
@@ -23,7 +22,7 @@ async function handleLogin(event) {
   const body = parseJsonBody(event); if (!body) return sendJson(400, { error: "Invalid JSON body." });
   const email = String(body.email || "").trim().toLowerCase(); const password = String(body.password || ""); const db = readDb(); const user = db.users.find((u) => u.email === email);
   if (!user || user.password_hash !== hashPassword(password, user.salt)) return sendJson(401, { error: "Email or password is incorrect." });
-  user.last_login_at = nowIso(); user.updated_at = nowIso(); writeDb(db); recordCreatedAccount({ id: user.id, name: user.full_name, email: user.email, school: String(user.school || ""), createdAt: user.created_at, lastLoginAt: user.last_login_at }); const token = createSession(user.id);
+  user.last_login_at = nowIso(); user.updated_at = nowIso(); writeDb(db); const token = createSession(user.id);
   return sendJson(200, { user: publicUser(user) }, { "Set-Cookie": cookieHeader(token, 60 * 60 * 24 * 7) });
 }
 function handleLogout(event) { clearSession(event); return sendJson(200, { ok: true }, { "Set-Cookie": cookieHeader("", 0) }); }
