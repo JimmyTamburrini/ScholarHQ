@@ -9,7 +9,7 @@ The core study tracker runs in the browser using HTML, CSS, JavaScript, and `loc
 
 ## What It Does
 
-- Create a local account, log in, and keep each browser user's study data in a separate workspace
+- Open the landing page, click Begin, and keep study data local to the browser
 - Log study sessions with subject, date, duration, notes, category, and optional assignment or exam details
 - Track classes with weighted assignment entries and a running GPA for each class
 - View semester GPA across classes with saved weighted grades
@@ -30,9 +30,9 @@ The core study tracker runs in the browser using HTML, CSS, JavaScript, and `loc
 
 ## Key Behaviors
 
-- Account login and signup currently run locally in the browser as a backend-ready prototype
-- Study sessions are stored locally in the browser under the signed-in account
-- Class gradebooks are stored locally in the browser under the signed-in account
+- The app no longer uses account login or signup
+- Study sessions are stored locally in the browser
+- Class gradebooks are stored locally in the browser
 - If a study session includes assignment info and a grade, it can publish into the matching class gradebook automatically
 - Grade-vs-study comparisons use:
   - matching subject
@@ -60,7 +60,7 @@ src/
 
 ## Run Locally
 
-Because this is a static browser app, you can run it very simply. The first screen now asks you to create a local ScholarHQ account before opening the dashboard.
+Because this is a static browser app, you can run it very simply. The first screen shows a landing page with a Begin button before opening the dashboard.
 
 1. Clone or download the repository
 2. Find the index.html file in the project folder once downloaded to your desktop
@@ -87,8 +87,6 @@ scholar start
 - `api/study-coach.js` - Render-hosted AI endpoint for the Home page coach
 - `api/study-plan.js` - Render-hosted AI endpoint for the study planner
 - `api/google-calendar.js` - Google OAuth, token refresh, connection status, and Calendar event creation endpoint
-- `api/accounts.js` - local Node endpoint that records created account names/emails to `created-accounts.json` when running through `npm start`
-- `created-accounts.json` - readable local account list for created website accounts; password hashes are intentionally not written here
 - `server.js` - Node server that serves the static app and AI/API routes
 - `render.yaml` - Render Blueprint configuration
 
@@ -112,7 +110,7 @@ The frontend sends your study data to Render API routes at `/api/study-coach` an
 
 ## Google Calendar Setup
 
-This project now includes the backend pieces needed for Google Calendar event creation. The frontend Calendar page connects the logged-in ScholarHQ browser account to Google OAuth, checks connection status, and syncs up to five saved study sessions into the user's primary Google Calendar.
+This project now includes the backend pieces needed for Google Calendar event creation. The frontend Calendar page connects the local ScholarHQ workspace to Google OAuth, checks connection status, and syncs up to five saved study sessions into the user's primary Google Calendar.
 
 After creating your Google Cloud project:
 
@@ -144,7 +142,7 @@ GOOGLE_CALENDAR_TIME_ZONE=America/Detroit
 
 The app requests the narrow `https://www.googleapis.com/auth/calendar.events` scope so ScholarHQ can create and update calendar events without full calendar access. OAuth token exchange and event creation stay on the Node backend; do not put Google client secrets in browser code.
 
-For this prototype, Google refresh tokens are saved in `.data/google-calendar-tokens.json`, which is ignored by Git. A production launch should move those tokens into an encrypted database tied to real server-side user accounts.
+For this prototype, Google refresh tokens are saved in `.data/google-calendar-tokens.json`, which is ignored by Git. A production launch should move those tokens into encrypted managed storage.
 
 ## Design Direction
 
@@ -159,12 +157,12 @@ Goal for the website is to be fully functional study tracker/planner designed to
 
 ## Status
 
-This version is currently local-first and browser-based. It now includes a local-only authentication gate so students can create accounts and keep browser data separated, but those accounts are not secure server accounts yet. Do not use real passwords until a backend database and production auth provider are connected. It is designed as a strong foundation for a future full web app or mobile app with authentication, cloud sync, and calendar integrations.
+This version is currently local-first and browser-based. It uses a simple landing page with a Begin button instead of account login. Study data remains local to the browser.
 I also have multiple versions saved to my computer for us to eventuallly push to github, but they all require a backend program to use the AI features in. It costs money, which we do not have yet.
 In order to do so, we need a solid pitch to get accepted into the launch rogram to get funding.
 
 ## Plan
 
-Currently we have a onboarding/account creation method. It is just not secure. We need to adjust this to create a actual usable website to go public. Once done, we can start to find a custom domain, trademark, and brand. Everything will cost money including subscriptions for the AI implementation, google calander implementation, Render hosting subscription, and of course custom domain for the Render site. I have added updated plans for the Render hosting subscription into "Discussions"
+Currently the app uses a no-account local workflow. Once the core product is ready, we can start to find a custom domain, trademark, and brand. Everything will cost money including subscriptions for the AI implementation, google calander implementation, Render hosting subscription, and of course custom domain for the Render site. I have added updated plans for the Render hosting subscription into "Discussions"
 
 WOOHOOO MONEY SPENDING!!
