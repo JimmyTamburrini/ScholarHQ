@@ -157,6 +157,25 @@
   }
 
 
+
+  async function callAuthApi(path, payload) {
+    if (window.location.protocol === "file:") {
+      return null;
+    }
+
+    const response = await window.fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify(payload || {}),
+    });
+    const result = await response.json().catch(function () { return {}; });
+    if (!response.ok) {
+      throw new Error(result.error || "Authentication failed. Please try again.");
+    }
+    return result;
+  }
+
   async function syncAccountFile(account) {
     if (!account || !account.id || window.location.protocol === "file:") {
       return;
@@ -1171,6 +1190,7 @@
 
     try {
       const response = await window.fetch("/api/study-coach", {
+        credentials: "same-origin",
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1211,6 +1231,7 @@
 
     try {
       const response = await window.fetch("/api/study-plan", {
+        credentials: "same-origin",
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1266,7 +1287,7 @@
       return;
     }
 
-    window.location.href = `/api/google/connect?userId=${encodeURIComponent(state.currentUser.id)}`;
+    window.location.href = "/api/google/connect";
   }
 
   async function requestCalendarStatus() {
@@ -1279,7 +1300,7 @@
     render();
 
     try {
-      const response = await window.fetch(`/api/google/status?userId=${encodeURIComponent(state.currentUser.id)}`);
+      const response = await window.fetch("/api/google/status", { credentials: "same-origin" });
       const payload = await response.json().catch(function () {
         return {};
       });
@@ -1321,6 +1342,7 @@
 
     try {
       const response = await window.fetch("/api/google/events", {
+        credentials: "same-origin",
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -3741,6 +3763,20 @@
           return;
         }
 
+        try {
+          await callAuthApi("/api/auth/signup", {
+            name: input.name,
+            full_name: input.name,
+            school: input.school,
+            email: input.email,
+            password: input.password,
+          });
+        } catch (error) {
+          state.authErrors = { form: error.message || "Could not create your secure account." };
+          render();
+          return;
+        }
+
         const salt = generateSalt();
         const now = new Date().toISOString();
         const account = {
@@ -3767,7 +3803,15 @@
       }
 
       if (!existing || existing.passwordHash !== await hashPassword(input.password, existing.salt)) {
-        state.authErrors = { form: "Email or password did not match a local account." };
+        state.authErrors = { form: "Email or password did not match an account." };
+        render();
+        return;
+      }
+
+      try {
+        await callAuthApi("/api/auth/login", { email: input.email, password: input.password });
+      } catch (error) {
+        state.authErrors = { form: error.message || "Could not start a secure session." };
         render();
         return;
       }
@@ -3948,6 +3992,7 @@
     }
 
     if (action === "logout") {
+      callAuthApi("/api/auth/logout", {}).catch(function () {});
       setActiveUser(null);
       state.currentUser = null;
       state.authMode = "landing";
