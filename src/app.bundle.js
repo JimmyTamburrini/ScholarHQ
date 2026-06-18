@@ -2632,6 +2632,9 @@
             <button class="primary-button" type="button" data-action="connect-google-calendar">
               ${connected ? "Reconnect Google Calendar" : "Connect Google Calendar"}
             </button>
+            <a class="secondary-button button-link" href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">
+              Set Up Google OAuth
+            </a>
             <button class="secondary-button" type="button" data-action="refresh-google-calendar-status" ${calendarState.loading ? "disabled" : ""}>
               ${calendarState.loading ? "Checking..." : "Refresh Status"}
             </button>
