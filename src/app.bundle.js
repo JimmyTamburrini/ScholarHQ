@@ -44,6 +44,7 @@
     { key: "analytics", label: "Charts" },
     { key: "stats", label: "Stats" },
     { key: "calendar", label: "Calendar", action: "open-calendar" },
+    { key: "security", label: "Security" },
   ];
   const VALID_PAGE_KEYS = new Set(PAGE_DEFINITIONS.map(function (page) { return page.key; }));
 
@@ -1437,6 +1438,147 @@
 
   // PAGE RENDERERS
   // Each render function below returns an HTML string for one piece of the UI.
+  async function requestSecurityStatus() {
+    if (!state.currentUser || state.security.loading) {
+      return;
+    }
+
+    state.security.loading = true;
+    state.security.error = "";
+    render();
+
+    try {
+      const response = await window.fetch("/api/security/status", {
+        credentials: "same-origin",
+      });
+      const payload = await response.json().catch(function () {
+        return {};
+      });
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Security status could not be loaded.");
+      }
+
+      state.security.status = payload;
+      state.security.error = "";
+    } catch (error) {
+      state.security.error = (error && error.message) || "Security status could not be loaded.";
+    } finally {
+      state.security.loading = false;
+      render();
+    }
+  }
+
+  function renderStatusPill(isReady, readyText, missingText) {
+    return `<span class="${isReady ? "status-pill success" : "status-pill warning"}">${escapeHtml(isReady ? readyText : missingText)}</span>`;
+  }
+
+  function renderSecurityPage(securityState, currentUser) {
+    const status = securityState.status || {};
+    const env = status.environment || {};
+    const storage = status.storage || {};
+    const user = status.currentUser || {};
+    const routes = status.routes || {};
+    const notes = Array.isArray(status.productionNotes) ? status.productionNotes : [];
+    const envRows = [
+      ["OpenAI API key", env.openAiConfigured],
+      ["Google client ID", env.googleClientConfigured],
+      ["Google client secret", env.googleSecretConfigured],
+      ["Google redirect URI", env.googleRedirectConfigured],
+      ["Public app URL", env.publicAppUrlConfigured],
+      ["Session secret", env.sessionSecretConfigured],
+      ["Token encryption key", env.tokenEncryptionConfigured],
+    ];
+    const routeRows = Object.entries(routes);
+
+    return `
+      <div class="page-stack">
+        <section class="panel">
+          <div class="panel-header list-header">
+            <div>
+              <p class="panel-kicker">Web Security Setup</p>
+              <h2>Account security status</h2>
+              <p class="panel-copy">
+                Use this page to confirm account persistence, protected route wiring, and server environment readiness without using terminal commands.
+              </p>
+            </div>
+            <button class="secondary-button" type="button" data-action="refresh-security-status" ${securityState.loading ? "disabled" : ""}>
+              ${securityState.loading ? "Checking..." : "Refresh status"}
+            </button>
+          </div>
+          ${securityState.error ? `<div class="coach-alert">${escapeHtml(securityState.error)}</div>` : ""}
+          <div class="summary-cards">
+            <article class="summary-card">
+              <p class="summary-label">Signed-in user</p>
+              <strong>${escapeHtml(user.email || (currentUser && currentUser.email) || "Not loaded")}</strong>
+              <span>${escapeHtml(user.full_name || (currentUser && currentUser.name) || "Student")}</span>
+            </article>
+            <article class="summary-card">
+              <p class="summary-label">Secure auth DB</p>
+              ${renderStatusPill(Boolean(storage.securityDbExists), "Saved", "Not found")}
+              <span>${escapeHtml(storage.securityDbPath || ".data/security-db.json")}</span>
+            </article>
+            <article class="summary-card">
+              <p class="summary-label">Visible account list</p>
+              ${renderStatusPill(Boolean(storage.createdAccountsExists), "Available", "Not found")}
+              <span>${escapeHtml(String(storage.createdAccountsCount || 0))} saved account${Number(storage.createdAccountsCount || 0) === 1 ? "" : "s"}</span>
+            </article>
+            <article class="summary-card">
+              <p class="summary-label">Current user persistence</p>
+              ${renderStatusPill(Boolean(user.savedInSecurityDb), "In secure DB", "Missing from secure DB")}
+              ${renderStatusPill(Boolean(user.listedInCreatedAccounts), "In account list", "Missing from account list")}
+            </article>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <p class="panel-kicker">Environment</p>
+            <h2>Server configuration checklist</h2>
+            <p class="panel-copy">This page only shows whether required values are present. It never displays secret values.</p>
+          </div>
+          <div class="subject-totals">
+            ${envRows.map(function (row) {
+              return `
+                <div class="subject-total-row">
+                  <span class="subject-total-name">${escapeHtml(row[0])}</span>
+                  <span class="subject-total-time">${renderStatusPill(Boolean(row[1]), "Configured", "Missing")}</span>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <p class="panel-kicker">Protected APIs</p>
+            <h2>Routes available to the web app</h2>
+          </div>
+          <div class="subject-totals">
+            ${routeRows.map(function (row) {
+              return `
+                <div class="subject-total-row">
+                  <span class="subject-total-name">${escapeHtml(row[0])}</span>
+                  <span class="subject-total-time"><code>${escapeHtml(row[1])}</code></span>
+                </div>
+              `;
+            }).join("") || `<div class="empty-state"><p>Refresh status to load route details.</p></div>`}
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <p class="panel-kicker">Production notes</p>
+            <h2>What still needs setup outside the browser</h2>
+          </div>
+          <ul class="insight-list">
+            ${notes.map(function (note) { return `<li>${escapeHtml(note)}</li>`; }).join("") || "<li>Refresh status to load setup notes.</li>"}
+          </ul>
+        </section>
+      </div>
+    `;
+  }
+
   function renderLandingPage() {
     return `
       <main class="landing-shell">
@@ -3439,6 +3581,11 @@
       error: "",
       message: "",
     },
+    security: {
+      loading: false,
+      error: "",
+      status: null,
+    },
     flashMessage: "",
     flashTimeoutId: null,
   };
@@ -3712,6 +3859,8 @@
       );
     } else if (state.currentPage === "stats") {
       pageContent = renderStatsPage(state.sessions);
+    } else if (state.currentPage === "security") {
+      pageContent = renderSecurityPage(state.security, state.currentUser);
     } else {
       pageContent = renderCalendarPage(state.calendar, state.sessions);
     }
@@ -4023,6 +4172,11 @@
         error: "",
         message: "",
       };
+      state.security = {
+        loading: false,
+        error: "",
+        status: null,
+      };
       state.timer.isRunning = false;
       state.currentPage = "home";
       render();
@@ -4038,6 +4192,14 @@
       if (target.dataset.page === "calendar") {
         requestCalendarStatus();
       }
+      if (target.dataset.page === "security") {
+        requestSecurityStatus();
+      }
+      return;
+    }
+
+    if (action === "refresh-security-status") {
+      requestSecurityStatus();
       return;
     }
 
@@ -4377,6 +4539,10 @@
   render();
   if (state.currentPage === "calendar" && state.currentUser) {
     requestCalendarStatus();
+  }
+
+  if (state.currentPage === "security" && state.currentUser) {
+    requestSecurityStatus();
   }
   document.title = "ScholarHQ";
 })();

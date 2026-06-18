@@ -1964,3 +1964,33 @@ button:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* Security setup status pills. */
+.status-pill {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 8px 10px;
+  width: fit-content;
+}
+
+.status-pill.success {
+  background: rgba(85, 201, 0, 0.16);
+  color: var(--success);
+}
+
+.status-pill.warning {
+  background: rgba(176, 138, 75, 0.18);
+  color: var(--gold);
+}
+
+.summary-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
