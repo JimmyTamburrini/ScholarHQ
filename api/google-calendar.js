@@ -230,7 +230,7 @@ function normalizeTokenResponse(payload) {
 async function getValidTokens(userId, config) {
   const tokens = getUserTokens(userId);
   if (!tokens) {
-    throw new Error("Google Calendar is not connected for this ScholarHQ account yet.");
+    throw new Error("Google Calendar is not connected for this AcademicTILT account yet.");
   }
 
   if (!tokens.expiry_date || Date.now() > Number(tokens.expiry_date) - 60 * 1000) {
@@ -273,7 +273,7 @@ function normalizeCalendarSession(session) {
   const startDateTime = `${date}T18:00:00`;
   const endDateTime = addMinutesToLocalDateTime(date, 18, 0, durationMinutes);
   const descriptionLines = [
-    "Created by ScholarHQ.",
+    "Created by AcademicTILT.",
     assignment ? `Assignment/exam: ${assignment}` : "",
     category ? `Category: ${category}` : "",
     notes ? `Notes: ${notes}` : "",

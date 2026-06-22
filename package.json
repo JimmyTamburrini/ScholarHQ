@@ -2,7 +2,7 @@
   "name": "scholarhq",
   "version": "1.0.0",
   "private": true,
-  "description": "ScholarHQ local-first study dashboard with Render-hosted AI endpoints.",
+  "description": "AcademicTILT local-first study dashboard with Render-hosted AI endpoints.",
   "main": "server.js",
   "bin": {
     "scholar": "./bin/scholar.js"
