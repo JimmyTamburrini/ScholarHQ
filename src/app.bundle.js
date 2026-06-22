@@ -102,7 +102,18 @@
     }) || null;
   }
 
-  let activeUser = loadSavedUser();
+  const DEMO_USER = {
+    id: "demo-ui-preview",
+    name: "Student",
+    email: "preview@academictilt.local",
+    passwordHash: "",
+    salt: "",
+    createdAt: "",
+    lastLoginAt: "",
+    school: "",
+  };
+
+  let activeUser = loadSavedUser() || DEMO_USER;
 
   function getScopedStorageKey(baseKey, userId) {
     const ownerId = userId || (activeUser && activeUser.id);
@@ -1682,8 +1693,7 @@
           </div>
         </div>
         <div class="nav-account">
-          <span>Signed in as <strong>${escapeHtml((currentUser && currentUser.name) || "Student")}</strong></span>
-          <button class="ghost-button compact" type="button" data-action="logout">Log out</button>
+          <span>UI preview mode</span>
         </div>
         <div class="nav-links">
           ${PAGE_DEFINITIONS
@@ -3821,10 +3831,9 @@
   // Main render function. Rebuilds the currently selected page from app state.
   function render() {
     if (!state.currentUser) {
-      appRoot.innerHTML = state.authMode === "landing"
-        ? renderLandingPage()
-        : renderAuthPage(state.authMode, state.authDraft, state.authErrors);
-      return;
+      state.currentUser = DEMO_USER;
+      setActiveUser(DEMO_USER);
+      reloadAccountData();
     }
 
     const isEditing = Boolean(state.editingId);
@@ -4155,31 +4164,6 @@
     }
 
     if (action === "logout") {
-      callAuthApi("/api/auth/logout", {}).catch(function () {});
-      setActiveUser(null);
-      state.currentUser = null;
-      state.authMode = "landing";
-      state.sessions = [];
-      state.grades = [];
-      state.classGradebooks = {};
-      state.classCatalog = [];
-      state.calendar = {
-        loading: false,
-        syncing: false,
-        connected: false,
-        connectedAt: "",
-        lastSyncedAt: "",
-        error: "",
-        message: "",
-      };
-      state.security = {
-        loading: false,
-        error: "",
-        status: null,
-      };
-      state.timer.isRunning = false;
-      state.currentPage = "home";
-      render();
       return;
     }
 
