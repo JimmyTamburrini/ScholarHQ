@@ -1,7 +1,7 @@
-# ScholarHQ Security Setup
+# AcademicTILT Security Setup
 
 ## Auth provider used
-ScholarHQ now uses the existing Node backend for production-shaped authentication because the app was a static/local-first app and no provider SDK was installed. Sessions are issued as `HttpOnly`, `SameSite=Lax` cookies from `/api/auth/*`. A Supabase-ready schema and RLS policy file is included at `supabase/schema.sql` for migration to Supabase Auth.
+AcademicTILT now uses the existing Node backend for production-shaped authentication because the app was a static/local-first app and no provider SDK was installed. Sessions are issued as `HttpOnly`, `SameSite=Lax` cookies from `/api/auth/*`. A Supabase-ready schema and RLS policy file is included at `supabase/schema.sql` for migration to Supabase Auth.
 
 ## Required environment variables
 Server-only: `OPENAI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `GOOGLE_CLIENT_SECRET`, `TOKEN_ENCRYPTION_KEY`, `SESSION_SECRET`, `GOOGLE_OAUTH_STATE_SECRET`.

@@ -1,6 +1,6 @@
-# ScholarHQ
+# AcademicTILT
 
-ScholarHQ is a local-first student productivity website built to help students log study sessions, track classes, calculate weighted grades and GPA, and review study trends from one clean dashboard.
+AcademicTILT is a local-first student productivity website built to help students log study sessions, track classes, calculate weighted grades and GPA, and review study trends from one clean dashboard.
 
 # Active Demo HTML is uploaded here: https://jimmytamburrini.github.io/productivity-hub-overview/
 
@@ -60,7 +60,7 @@ src/
 
 ## Run Locally
 
-Because this is a static browser app, you can run it very simply. The first screen now asks you to create a local ScholarHQ account before opening the dashboard.
+Because this is a static browser app, you can run it very simply. The first screen now asks you to create a local AcademicTILT account before opening the dashboard.
 
 1. Clone or download the repository
 2. Find the index.html file in the project folder once downloaded to your desktop
@@ -73,7 +73,7 @@ npm install
 npm start
 ```
 
-The ScholarHQ command runner also supports the requested command style when the package binary is available:
+The AcademicTILT command runner also supports the requested command style when the package binary is available:
 
 ```bash
 scholar start
@@ -104,7 +104,7 @@ To enable it on Render:
 1. Create a Render Web Service from this repository, or use the included `render.yaml` Blueprint.
 2. Set the Render environment variable named `SCHOLARHQ_API` to your OpenAI API key. Do not commit the key to this repository.
 3. Optionally add `OPENAI_MODEL` if you want to override the default model (`gpt-4o-mini`).
-4. Use the Node runtime. The included Render Blueprint runs `npm install` and starts the app with `npm start`, which launches the ScholarHQ command runner with `scholar start` behavior.
+4. Use the Node runtime. The included Render Blueprint runs `npm install` and starts the app with `npm start`, which launches the AcademicTILT command runner with `scholar start` behavior.
 5. Redeploy the service after saving environment variables.
 
 The frontend sends your study data to Render API routes at `/api/study-coach` and `/api/study-plan`, and the Render server calls the OpenAI API securely from the server side.
@@ -112,7 +112,7 @@ The frontend sends your study data to Render API routes at `/api/study-coach` an
 
 ## Google Calendar Setup
 
-This project now includes the backend pieces needed for Google Calendar event creation. The frontend Calendar page connects the logged-in ScholarHQ browser account to Google OAuth, checks connection status, and syncs up to five saved study sessions into the user's primary Google Calendar.
+This project now includes the backend pieces needed for Google Calendar event creation. The frontend Calendar page connects the logged-in AcademicTILT browser account to Google OAuth, checks connection status, and syncs up to five saved study sessions into the user's primary Google Calendar.
 
 After creating your Google Cloud project:
 
@@ -142,7 +142,7 @@ GOOGLE_OAUTH_STATE_SECRET=replace-with-a-long-random-string
 GOOGLE_CALENDAR_TIME_ZONE=America/Detroit
 ```
 
-The app requests the narrow `https://www.googleapis.com/auth/calendar.events` scope so ScholarHQ can create and update calendar events without full calendar access. OAuth token exchange and event creation stay on the Node backend; do not put Google client secrets in browser code.
+The app requests the narrow `https://www.googleapis.com/auth/calendar.events` scope so AcademicTILT can create and update calendar events without full calendar access. OAuth token exchange and event creation stay on the Node backend; do not put Google client secrets in browser code.
 
 For this prototype, Google refresh tokens are saved in `.data/google-calendar-tokens.json`, which is ignored by Git. A production launch should move those tokens into an encrypted database tied to real server-side user accounts.
 

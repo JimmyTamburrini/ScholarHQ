@@ -110,7 +110,7 @@ async function handleApiRequest(req, res, handler) {
     sendResponse(res, result.statusCode || 200, result.headers, result.body);
   } catch (error) {
     sendJson(res, 500, {
-      error: error && error.message ? error.message : "The ScholarHQ API request failed.",
+      error: error && error.message ? error.message : "The AcademicTILT API request failed.",
     });
   }
 }
@@ -188,7 +188,7 @@ function startServer() {
   const server = createServer();
 
   server.listen(port, function () {
-    console.log(`ScholarHQ is running on port ${port}.`);
+    console.log(`AcademicTILT is running on port ${port}.`);
   });
 
   return server;

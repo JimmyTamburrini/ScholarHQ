@@ -145,7 +145,7 @@ exports.handler = async function (event) {
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || "gpt-4o-mini",
         input:
-          "You are an academic productivity coach for a student dashboard named ScholarHQ. " +
+          "You are an academic productivity coach for a student dashboard named AcademicTILT. " +
           "Analyze the student's recent study behavior and class progress. " +
           "Return only valid JSON with this exact shape: " +
           '{ "headline": string, "summary": string, "priorities": string[], "risks": string[], "nextSteps": string[] }. ' +

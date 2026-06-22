@@ -218,7 +218,7 @@
     }
 
     if (mode === "signup" && !String(input.school || "").trim()) {
-      errors.school = "Add your school so ScholarHQ can tailor study research to your classes.";
+      errors.school = "Add your school so AcademicTILT can tailor study research to your classes.";
     }
 
     if (!normalizeEmail(input.email) || !normalizeEmail(input.email).includes("@")) {
@@ -1583,8 +1583,8 @@
     return `
       <main class="landing-shell">
         <section class="landing-card panel" aria-labelledby="landing-title">
-          <img class="landing-logo" src="./ScholarHQ%20Branding%20Logo.png" alt="ScholarHQ logo" />
-          <h1 id="landing-title">Welcome to ScholarHQ</h1>
+          <img class="landing-logo" src="./AcademicTILT%20Branding%20Logo.png" alt="AcademicTILT logo" />
+          <h1 id="landing-title">Welcome to AcademicTILT</h1>
           <div class="landing-actions" aria-label="Account options">
             <button class="primary-button" type="button" data-action="switch-auth" data-mode="login">Log In</button>
             <button class="ghost-button" type="button" data-action="switch-auth" data-mode="signup">Create Account</button>
@@ -1602,8 +1602,8 @@
       <main class="auth-shell">
         <section class="auth-card">
           <div class="auth-copy">
-            <p class="eyebrow">ScholarHQ Accounts</p>
-            <h1>${isSignup ? "Create your study account." : "Welcome back to ScholarHQ."}</h1>
+            <p class="eyebrow">AcademicTILT Accounts</p>
+            <h1>${isSignup ? "Create your study account." : "Welcome back to AcademicTILT."}</h1>
             <p class="hero-text">
               Sign in to keep your study sessions, class gradebooks, charts, and AI planning data separated from other students on this browser.
             </p>
@@ -1675,10 +1675,10 @@
     return `
       <nav class="site-nav" aria-label="Primary navigation">
         <div class="brand-block">
-          <img class="brand-logo" src="./ScholarHQ%20Branding%20Logo.png" alt="ScholarHQ logo" />
+          <img class="brand-logo" src="./AcademicTILT%20Branding%20Logo.png" alt="AcademicTILT logo" />
           <div>
             <p class="eyebrow">Study Tracker</p>
-            <h2>ScholarHQ</h2>
+            <h2>AcademicTILT</h2>
           </div>
         </div>
         <div class="nav-account">
@@ -2712,7 +2712,7 @@
           <h1>Plan, connect, and sync your study schedule.</h1>
         </div>
         <p class="hero-text">
-          This page now matches the README plan: connect Google Calendar with OAuth, keep credentials on the Node/Render backend, and push saved ScholarHQ study sessions into your primary calendar.
+          This page now matches the README plan: connect Google Calendar with OAuth, keep credentials on the Node/Render backend, and push saved AcademicTILT study sessions into your primary calendar.
         </p>
       </section>
 
@@ -2733,7 +2733,7 @@
             </div>
             <div class="feature-item">
               <strong>2. Sync saved study sessions</strong>
-              <p>ScholarHQ turns your saved sessions into calendar event payloads and sends them from the server.</p>
+              <p>AcademicTILT turns your saved sessions into calendar event payloads and sends them from the server.</p>
             </div>
             <div class="feature-item">
               <strong>3. Protect secrets on the backend</strong>
@@ -2766,7 +2766,7 @@
               <p class="eyebrow">Connection Status</p>
               <h2>${connected ? "Calendar Connected" : "Calendar Not Connected"}</h2>
             </div>
-            <p class="panel-copy">${connected ? "You can now push saved ScholarHQ sessions into your primary Google Calendar." : "Add your Google OAuth credentials to the server, then connect this ScholarHQ account."}</p>
+            <p class="panel-copy">${connected ? "You can now push saved AcademicTILT sessions into your primary Google Calendar." : "Add your Google OAuth credentials to the server, then connect this AcademicTILT account."}</p>
           </div>
 
           <div class="coach-status-row">
@@ -2871,7 +2871,7 @@
         <article class="summary-card">
           <p class="eyebrow">Classes</p>
           <h2>${subjects.length}</h2>
-          <p>Total classes currently known in your ScholarHQ.</p>
+          <p>Total classes currently known in your AcademicTILT.</p>
         </article>
         <article class="summary-card">
           <p class="eyebrow">Graded Classes</p>
@@ -3452,7 +3452,7 @@
             <p class="eyebrow">Before You Log</p>
             <h2>Add your school and classes</h2>
           </div>
-          <p class="panel-copy">ScholarHQ uses your school, class names, and class codes to research the right chapter, course topic, or exam area for AI study planning.</p>
+          <p class="panel-copy">AcademicTILT uses your school, class names, and class codes to research the right chapter, course topic, or exam area for AI study planning.</p>
         </div>
         <form id="profile-setup-form" class="class-entry-form" novalidate>
           <div class="form-grid">
@@ -3950,7 +3950,7 @@
         state.authErrors = {};
         state.authDraft = { name: "", school: "", email: "", password: "" };
         reloadAccountData();
-        showFlashMessage(`Welcome to ScholarHQ, ${account.name}. Your secure account workspace is ready.`);
+        showFlashMessage(`Welcome to AcademicTILT, ${account.name}. Your secure account workspace is ready.`);
         return;
       }
 
@@ -4544,5 +4544,5 @@
   if (state.currentPage === "security" && state.currentUser) {
     requestSecurityStatus();
   }
-  document.title = "ScholarHQ";
+  document.title = "AcademicTILT";
 })();
