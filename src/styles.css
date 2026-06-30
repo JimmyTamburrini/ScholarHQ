@@ -59,15 +59,15 @@
   /* Lighter green accent for hover gradients. */
   --oak-light: #52b788;
   /* Large soft shadow under cards and panels. */
-  --shadow: 0 28px 70px rgba(0, 0, 0, 0.35);
+  --shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
   /* Subtle border around cards, panels, and controls. */
   --frame: rgba(220, 230, 224, 0.14);
   /* Biggest rounded corners for major UI boxes. */
-  --radius-xl: 30px;
+  --radius-xl: 8px;
   /* Medium rounded corners for cards inside panels. */
-  --radius-lg: 22px;
+  --radius-lg: 6px;
   /* Smaller rounded corners for inputs and compact controls. */
-  --radius-md: 16px;
+  --radius-md: 4px;
 }
 
 /* ==================== 2. WHOLE PAGE FOUNDATION ==================== */
@@ -84,9 +84,13 @@ body {
   min-height: 100%;
 }
 
+
 /* Overall page background and text styling. */
 body {
-  font-family: "DM Sans", sans-serif;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
   color: var(--text);
   background:
     radial-gradient(
@@ -121,13 +125,13 @@ body {
 
 *::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--frame);
 }
 
 *::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, var(--oak), var(--gold));
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   border: 2px solid rgba(18, 14, 12, 0.65);
 }
 
@@ -172,7 +176,7 @@ body::before {
   gap: 18px;
   padding: clamp(34px, 7vw, 72px);
   text-align: center;
-  border-radius: 38px;
+  border-radius: var(--radius-xl);
 }
 
 .landing-logo {
@@ -198,7 +202,7 @@ body::before {
 .landing-actions {
   display: flex;
   justify-content: center;
-  gap: 14px;
+  gap: 8px;
   flex-wrap: wrap;
   margin-top: 8px;
 }
@@ -237,7 +241,7 @@ body::before {
   flex-direction: column;
   justify-content: center;
   gap: 20px;
-  padding: 12px;
+  padding: 8px;
 }
 
 .auth-copy h1 {
@@ -252,7 +256,7 @@ body::before {
 }
 
 .auth-benefits div {
-  padding: 16px;
+  padding: 12px;
   border: 1px solid var(--frame);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.04);
@@ -280,21 +284,29 @@ body::before {
 
 /* Main centered site container. */
 .page-shell {
-  width: min(1520px, calc(100% - 40px));
+  width: min(1520px, calc(100% - 20px));
+  height: 100vh;
   margin: 0 auto;
-  padding: 28px 0 72px;
+  padding: 8px 0;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  overflow: hidden;
 }
 
 /* Top navigation bar around logo, page links, and account controls. */
 .site-nav {
-  /* Top navigation shell. */
+  /* Left-side vertical navigation shell. */
   display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: center;
-  margin-bottom: 18px;
-  padding: 18px 22px;
-  border-radius: 999px;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 10px;
+  align-items: stretch;
+  min-height: 0;
+  margin-bottom: 0;
+  padding: 10px 8px;
+  border-radius: var(--radius-xl);
   background: var(--surface);
   border: 1px solid var(--frame);
   box-shadow: var(--shadow);
@@ -304,32 +316,35 @@ body::before {
 
 /* AcademicTILT logo and text in the top navigation. */
 .brand-block {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
 }
 
 .brand-logo {
-  width: 46px;
-  height: 46px;
+  width: 34px;
+  height: 34px;
   flex: 0 0 auto;
   border: 1px solid var(--frame);
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: var(--surface-soft);
   object-fit: cover;
 }
 
 .brand-block h2 {
   margin: 0;
-  font-size: 1.25rem;
-  letter-spacing: 0.03em;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
 }
 
 /* Group of page-switching links in the top navigation. */
 .nav-links {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 4px;
+  flex-wrap: nowrap;
+  width: 100%;
 }
 
 /* User email and logout area in the top navigation. */
@@ -337,9 +352,11 @@ body::before {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-left: auto;
+  margin-left: 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.58rem;
+  justify-content: center;
+  text-align: center;
 }
 
 .nav-account strong {
@@ -353,11 +370,14 @@ body::before {
 
 /* Individual page link in the top navigation. */
 .nav-link {
-  padding: 10px 16px;
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 0.7rem;
+  text-align: left;
   background: transparent;
   color: var(--text);
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
@@ -372,12 +392,15 @@ body::before {
 
 /* Main outer UI box used on every page. */
 .hero {
-  padding: 34px;
+  height: calc(100vh - 16px);
+  min-height: 0;
+  padding: 8px;
   border: 1px solid var(--frame);
-  border-radius: 38px;
+  border-radius: var(--radius-xl);
   background: var(--surface);
   box-shadow: var(--shadow);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: scroll;
   position: relative;
 }
 
@@ -397,31 +420,32 @@ body::before {
 
 .hero-shell {
   display: grid;
-  gap: 20px;
+  gap: 8px;
   position: relative;
+  min-height: 0;
 }
 
 /* Page title/description row at the top of each page. */
 .page-intro {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
-  gap: 24px;
+  gap: 10px;
   align-items: end;
-  padding-bottom: 6px;
+  padding-bottom: 2px;
   border-bottom: 1px solid var(--line);
 }
 
 .page-intro.compact h1 {
   max-width: 14ch;
-  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-size: clamp(1.05rem, 1.5vw, 1.45rem);
 }
 
 /* Small gold label above page titles. */
 .eyebrow {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  font-size: 0.72rem;
+  font-size: 0.58rem;
   font-weight: 700;
   color: var(--gold);
 }
@@ -430,12 +454,13 @@ h1,
 h2,
 h3 {
   margin: 0;
-  font-family: "Space Grotesk", sans-serif;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 800;
 }
 
 h1 {
-  font-size: clamp(2.7rem, 5vw, 4.7rem);
-  line-height: 0.94;
+  font-size: clamp(1.2rem, 2vw, 1.8rem);
+  line-height: 0.98;
   max-width: 11ch;
 }
 
@@ -452,8 +477,8 @@ h1 {
 .hero-text {
   margin: 0;
   max-width: 56ch;
-  font-size: 1.03rem;
-  line-height: 1.75;
+  font-size: 0.68rem;
+  line-height: 1.2;
 }
 
 /* ==================== 6. HOME PAGE AND AI COACH BOXES ==================== */
@@ -464,8 +489,8 @@ h1 {
 .workspace-grid,
 .stats-grid {
   display: grid;
-  gap: 18px;
-  margin-top: 20px;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .home-grid {
@@ -493,7 +518,7 @@ h1 {
 .coach-summary-card,
 .coach-section {
   padding: 18px;
-  border-radius: 22px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   border: 1px solid var(--frame);
 }
@@ -530,8 +555,8 @@ h1 {
 }
 
 .coach-list-item {
-  padding: 14px 16px;
-  border-radius: 18px;
+  padding: 6px 8px;
+  border-radius: var(--radius-xl);
   background: var(--surface);
   border: 1px solid var(--frame);
   color: var(--muted);
@@ -553,8 +578,8 @@ h1 {
 }
 
 .research-source-list li {
-  padding: 14px 16px;
-  border-radius: 18px;
+  padding: 6px 8px;
+  border-radius: var(--radius-xl);
   background: var(--surface);
   border: 1px solid var(--frame);
 }
@@ -578,8 +603,8 @@ h1 {
 
 .coach-alert {
   margin-top: 18px;
-  padding: 14px 16px;
-  border-radius: 18px;
+  padding: 6px 8px;
+  border-radius: var(--radius-xl);
   background: var(--accent-soft);
   border: 1px solid var(--accent-strong);
   color: var(--text);
@@ -594,7 +619,7 @@ h1 {
 }
 
 .workspace-grid {
-  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
   align-items: start;
 }
 
@@ -615,8 +640,8 @@ h1 {
 /* Individual class card. */
 .class-card {
   text-align: left;
-  padding: 22px;
-  border-radius: 24px;
+  padding: 8px;
+  border-radius: var(--radius-xl);
   background: var(--surface);
   border: 1px solid var(--frame);
   color: var(--text);
@@ -640,7 +665,7 @@ h1 {
   min-width: 58px;
   min-height: 38px;
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: var(--accent-soft);
   color: var(--gold);
   font-weight: 700;
@@ -702,26 +727,26 @@ h1 {
 
 /* Small dashboard summary box. */
 .summary-card {
-  padding: 24px;
+  padding: 8px;
 }
 
 .summary-card h2 {
   margin-bottom: 10px;
-  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  font-size: clamp(1rem, 1.6vw, 1.35rem);
 }
 
 /* Large reusable UI panel spacing. */
 .panel {
-  padding: 28px;
+  padding: 8px;
 }
 
 /* Header row inside large panels. */
 .panel-header {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
+  gap: 12px;
   align-items: end;
-  margin-bottom: 24px;
+  margin-bottom: 8px;
 }
 
 .panel-copy {
@@ -754,11 +779,11 @@ h1 {
 
 .sort-control select {
   border: 1px solid var(--frame);
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background-color: var(--surface);
   color: var(--text);
-  padding: 12px 14px;
-  padding-right: 42px;
+  padding: 6px 8px;
+  padding-right: 28px;
   font: inherit;
   appearance: none;
   -webkit-appearance: none;
@@ -767,8 +792,8 @@ h1 {
     linear-gradient(45deg, transparent 50%, var(--gold) 50%),
     linear-gradient(135deg, var(--gold) 50%, transparent 50%);
   background-position:
-    calc(100% - 22px) calc(50% - 3px),
-    calc(100% - 16px) calc(50% - 3px);
+    calc(100% - 16px) calc(50% - 3px),
+    calc(100% - 10px) calc(50% - 3px);
   background-size:
     6px 6px,
     6px 6px;
@@ -796,13 +821,13 @@ form,
 .critical-stats,
 .grade-list {
   display: grid;
-  gap: 18px;
+  gap: 8px;
 }
 
 /* Stats page row for one subject. */
 .stat-row {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .stat-row-top {
@@ -816,7 +841,7 @@ form,
 .stat-values {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .stat-values {
@@ -826,7 +851,7 @@ form,
 
 .stat-bar-track {
   height: 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: #f2f2f2;
   border: 1px solid var(--frame);
   overflow: hidden;
@@ -834,14 +859,14 @@ form,
 
 .stat-bar-fill {
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.16);
 }
 
 /* Saved grade item card. */
 .grade-item {
   padding: 20px;
-  border-radius: 22px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   border: 1px solid var(--frame);
 }
@@ -859,7 +884,7 @@ form,
   justify-content: center;
   min-width: 72px;
   padding: 10px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: var(--accent-soft);
   color: var(--text);
   font-weight: 700;
@@ -920,7 +945,7 @@ form,
 /* Home page feature/tip box. */
 .feature-item {
   padding: 18px;
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   border: 1px solid var(--frame);
 }
@@ -938,12 +963,13 @@ form,
 /* Big countdown timer display box. */
 .timer-display {
   /* Fixed timer box so the timer text does not move the layout around. */
-  font-family: "Space Grotesk", sans-serif;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 800;
   font-size: clamp(2.8rem, 8vw, 4.8rem);
   letter-spacing: 0.08em;
   text-align: center;
-  padding: 22px;
-  border-radius: 24px;
+  padding: 8px;
+  border-radius: var(--radius-xl);
   background: var(--surface);
   border: 1px solid var(--frame);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.02);
@@ -964,7 +990,7 @@ form,
 .status-dot {
   width: 10px;
   height: 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: #bdbdbd;
 }
 
@@ -976,11 +1002,11 @@ form,
 .editing-banner {
   display: flex;
   justify-content: space-between;
-  gap: 14px;
+  gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 18px;
-  padding: 14px 16px;
-  border-radius: 18px;
+  padding: 6px 8px;
+  border-radius: var(--radius-xl);
   background: var(--accent-soft);
   border: 1px solid var(--accent-strong);
   color: var(--text);
@@ -990,7 +1016,7 @@ form,
 .flash-banner {
   margin-top: 20px;
   padding: 16px 18px;
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   background: linear-gradient(
     135deg,
     rgba(48, 69, 55, 0.28),
@@ -1009,18 +1035,18 @@ form,
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 10px;
 }
 
 /* Form field label wrapper. */
 label {
   display: grid;
-  gap: 8px;
-  font-weight: 500;
+  gap: 4px;
+  font-weight: 700;
 }
 
 label span {
-  font-size: 0.95rem;
+  font-size: 0.66rem;
 }
 
 /* Make form controls and buttons use the same font as the app. */
@@ -1040,7 +1066,7 @@ select {
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
-  padding: 14px 16px;
+  padding: 6px 8px;
   transition:
     border-color 180ms ease,
     box-shadow 180ms ease,
@@ -1056,8 +1082,8 @@ select {
     linear-gradient(45deg, transparent 50%, var(--gold) 50%),
     linear-gradient(135deg, var(--gold) 50%, transparent 50%);
   background-position:
-    calc(100% - 22px) calc(50% - 3px),
-    calc(100% - 16px) calc(50% - 3px);
+    calc(100% - 16px) calc(50% - 3px),
+    calc(100% - 10px) calc(50% - 3px);
   background-size:
     6px 6px,
     6px 6px;
@@ -1089,7 +1115,7 @@ input[type="range"] {
 
 input[type="range"]::-webkit-slider-runnable-track {
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: linear-gradient(90deg, var(--oak), var(--gold));
   border: 1px solid var(--frame);
 }
@@ -1100,7 +1126,7 @@ input[type="range"]::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   margin-top: -6px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   border: 3px solid var(--accent-strong);
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
@@ -1108,7 +1134,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 input[type="range"]::-moz-range-track {
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: linear-gradient(90deg, var(--oak), var(--gold));
   border: 1px solid var(--frame);
 }
@@ -1116,7 +1142,7 @@ input[type="range"]::-moz-range-track {
 input[type="range"]::-moz-range-thumb {
   width: 18px;
   height: 18px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   border: 3px solid var(--accent-strong);
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
@@ -1129,15 +1155,15 @@ input[type="range"]::-moz-range-thumb {
 .chart-insights,
 .chart-legend {
   display: flex;
-  gap: 12px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 button {
   border: 0;
   cursor: pointer;
-  border-radius: 999px;
-  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  padding: 6px 8px;
   transition:
     transform 180ms ease,
     box-shadow 180ms ease,
@@ -1168,11 +1194,11 @@ button:hover {
 
 .button-link {
   align-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   display: inline-flex;
   font: inherit;
   justify-content: center;
-  padding: 12px 18px;
+  padding: 6px 8px;
   text-decoration: none;
   transition:
     transform 180ms ease,
@@ -1209,8 +1235,8 @@ button:hover {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
-  border-radius: 999px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   border: 1px solid var(--frame);
   color: var(--muted);
@@ -1219,7 +1245,7 @@ button:hover {
 .insight-label {
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  font-size: 0.72rem;
+  font-size: 0.58rem;
   color: var(--gold);
 }
 
@@ -1228,11 +1254,11 @@ button:hover {
 /* Main chart drawing area. */
 .chart-grid {
   display: grid;
-  gap: 16px;
+  gap: 8px;
   align-items: end;
-  min-height: 320px;
-  padding: 18px;
-  border-radius: 24px;
+  min-height: 190px;
+  padding: 8px;
+  border-radius: var(--radius-xl);
   background: var(--surface);
   border: 1px solid var(--frame);
 }
@@ -1247,8 +1273,8 @@ button:hover {
 .grade-study-graph {
   position: relative;
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) 72px;
-  gap: 14px;
+  grid-template-columns: 40px minmax(0, 1fr) 52px;
+  gap: 8px;
   align-items: stretch;
 }
 
@@ -1283,8 +1309,8 @@ button:hover {
   position: relative;
   display: grid;
   gap: 0;
-  min-height: 380px;
-  padding: 14px 6px 0;
+  min-height: 210px;
+  padding: 8px 4px 0;
   width: 100%;
 }
 
@@ -1294,7 +1320,7 @@ button:hover {
   top: 14px;
   left: 11px;
   width: calc(100% - 22px);
-  height: 280px;
+  height: 170px;
   pointer-events: none;
   overflow: visible;
 }
@@ -1320,9 +1346,9 @@ button:hover {
 /* Inner plotting area for a study bar and grade dot. */
 .grade-study-plot {
   position: relative;
-  height: 280px;
-  border-radius: 22px;
-  padding: 14px;
+  height: 170px;
+  border-radius: var(--radius-lg);
+  padding: 8px;
   background: var(--surface);
   border: 1px solid var(--frame);
   display: flex;
@@ -1345,7 +1371,7 @@ button:hover {
   width: 18px;
   height: 18px;
   margin-left: -9px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   border: 4px solid #b08a4b;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
@@ -1363,7 +1389,7 @@ button:hover {
   display: grid;
   gap: 2px;
   justify-items: center;
-  font-size: 0.76rem;
+  font-size: 0.7rem;
   line-height: 1.25;
   color: var(--text);
   text-align: center;
@@ -1380,7 +1406,7 @@ button:hover {
 
 .grade-study-label-date {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.58rem;
 }
 
 /* Clickable chart column. */
@@ -1414,8 +1440,8 @@ button:hover {
 .chart-bar-frame {
   position: relative;
   height: 220px;
-  border-radius: 18px;
-  padding: 10px;
+  border-radius: var(--radius-xl);
+  padding: 8px;
   background: var(--surface);
   border: 1px solid var(--frame);
 }
@@ -1475,7 +1501,7 @@ button:hover {
 .legend-swatch {
   width: 12px;
   height: 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
 }
 
 /* Weekly details card under charts. */
@@ -1483,7 +1509,7 @@ button:hover {
   display: grid;
   gap: 16px;
   padding: 18px;
-  border-radius: 22px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   border: 1px solid var(--frame);
 }
@@ -1524,8 +1550,8 @@ button:hover {
   display: flex;
   justify-content: space-between;
   gap: 20px;
-  padding: 22px;
-  border-radius: 22px;
+  padding: 8px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   border: 1px solid var(--frame);
 }
@@ -1547,20 +1573,20 @@ button:hover {
 }
 
 .session-title-row h3 {
-  font-size: 1.2rem;
+  font-size: 0.9rem;
 }
 
 .session-meta {
   display: flex;
-  gap: 14px;
+  gap: 8px;
   flex-wrap: wrap;
   margin: 8px 0 0;
-  font-size: 0.95rem;
+  font-size: 0.66rem;
 }
 
 .session-notes {
-  margin: 12px 0 0;
-  line-height: 1.6;
+  margin: 6px 0 0;
+  line-height: 1.25;
 }
 
 /* Small subject/category badge. */
@@ -1569,7 +1595,7 @@ button:hover {
   display: inline-flex;
   align-items: center;
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: var(--accent-soft);
   color: var(--text);
   font-weight: 700;
@@ -1578,7 +1604,7 @@ button:hover {
 /* Empty list placeholder box. */
 .empty-state {
   padding: 28px;
-  border-radius: 24px;
+  border-radius: var(--radius-xl);
   background: var(--surface);
   border: 1px dashed var(--frame);
 }
@@ -1612,6 +1638,14 @@ button:hover {
 /* ==================== 11. TABLET LAYOUT ==================== */
 
 @media (max-width: 980px) {
+  .page-shell {
+    height: auto;
+    min-height: 100vh;
+    display: block;
+    overflow: visible;
+    padding: 20px 0 36px;
+  }
+
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1645,18 +1679,40 @@ button:hover {
     align-items: start;
   }
 
+  .site-nav {
+    margin-bottom: 18px;
+  }
+
+  .hero {
+    height: auto;
+    overflow: visible;
+  }
+
+  .brand-block {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .nav-link {
+    text-align: center;
+  }
+
   .account-chip {
     text-align: left;
   }
 
   .chart-grid {
-    min-height: 280px;
+    min-height: 190px;
   }
 }
 
 /* ==================== 12. PHONE LAYOUT ==================== */
 
 @media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+
   .page-shell {
     width: min(100% - 20px, 100%);
     padding: 20px 0 36px;
@@ -1668,12 +1724,12 @@ button:hover {
   .landing-card,
   .summary-card,
   .session-item {
-    border-radius: 24px;
+    border-radius: var(--radius-xl);
   }
 
   .hero,
   .panel {
-    padding: 22px;
+    padding: 8px;
   }
 
   .landing-shell {
@@ -1712,7 +1768,7 @@ button:hover {
   }
 
   .auth-card {
-    padding: 22px;
+    padding: 8px;
   }
 
   .chart-grid {
@@ -1756,8 +1812,8 @@ button:hover {
   display: grid;
   gap: 10px;
   min-height: 150px;
-  padding: 16px;
-  border-radius: 22px;
+  padding: 12px;
+  border-radius: var(--radius-lg);
   background: linear-gradient(180deg, rgba(176, 138, 75, 0.12), rgba(255, 244, 232, 0.04));
   border: 1px solid rgba(176, 138, 75, 0.22);
 }
@@ -1766,7 +1822,7 @@ button:hover {
   width: max-content;
   max-width: 100%;
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: rgba(42, 52, 68, 0.72);
   color: #fff4dd;
   font-weight: 700;
@@ -1946,7 +2002,7 @@ button:hover {
   border: 1px solid var(--frame);
   border-radius: var(--radius-md);
   background: var(--surface-soft);
-  padding: 16px;
+  padding: 12px;
 }
 
 .calendar-roadmap strong {
@@ -1967,12 +2023,12 @@ button:hover {
 
 /* Security setup status pills. */
 .status-pill {
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   display: inline-flex;
-  font-size: 0.82rem;
+  font-size: 0.66rem;
   font-weight: 800;
   line-height: 1;
-  padding: 8px 10px;
+  padding: 6px 8px;
   width: fit-content;
 }
 
@@ -1993,4 +2049,57 @@ button:hover {
   letter-spacing: 0.12em;
   margin: 0 0 8px;
   text-transform: uppercase;
+}
+
+/* Page-specific containment: keep tab switches from resizing the frame. */
+.hero {
+  scrollbar-gutter: stable both-edges;
+}
+
+
+.page-shell[data-page="home"] .page-intro {
+  grid-template-columns: minmax(0, 0.9fr) minmax(260px, 1.1fr);
+}
+
+.page-shell[data-page="home"] .home-grid,
+.page-shell[data-page="home"] .summary-grid {
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.page-shell[data-page="home"] .feature-list {
+  gap: 6px;
+}
+
+.page-shell[data-page="home"] .feature-item,
+.page-shell[data-page="home"] .coach-chip,
+.page-shell[data-page="home"] .coach-summary-card,
+.page-shell[data-page="home"] .coach-section {
+  padding: 6px;
+}
+
+.page-shell[data-page="home"] .feature-item p,
+.page-shell[data-page="home"] .summary-card p,
+.page-shell[data-page="home"] .panel-copy {
+  line-height: 1.2;
+}
+
+.page-shell[data-page="home"] .timer-display {
+  min-height: 76px;
+  font-size: clamp(1.6rem, 4vw, 2.6rem);
+  padding: 6px;
+}
+
+.page-shell[data-page="home"] .timer-status {
+  margin-top: 4px;
+}
+
+.page-shell[data-page="home"] .ai-coach-panel,
+.page-shell[data-page="home"] .coach-status-row {
+  margin-top: 6px;
+}
+
+.page-shell[data-page="home"] .study-plan-panel .panel-header,
+.page-shell[data-page="home"] .timer-panel .panel-header {
+  margin-bottom: 6px;
 }
