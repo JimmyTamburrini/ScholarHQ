@@ -2056,3 +2056,59 @@ button:hover {
   margin: 0 0 8px;
   text-transform: uppercase;
 }
+
+/* Page-specific containment: keep tab switches from resizing the frame. */
+.hero {
+  scrollbar-gutter: stable both-edges;
+}
+
+.page-shell[data-page="home"] .hero {
+  overflow: hidden;
+}
+
+.page-shell[data-page="home"] .page-intro {
+  grid-template-columns: minmax(0, 0.9fr) minmax(260px, 1.1fr);
+}
+
+.page-shell[data-page="home"] .home-grid,
+.page-shell[data-page="home"] .summary-grid {
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.page-shell[data-page="home"] .feature-list {
+  gap: 6px;
+}
+
+.page-shell[data-page="home"] .feature-item,
+.page-shell[data-page="home"] .coach-chip,
+.page-shell[data-page="home"] .coach-summary-card,
+.page-shell[data-page="home"] .coach-section {
+  padding: 6px;
+}
+
+.page-shell[data-page="home"] .feature-item p,
+.page-shell[data-page="home"] .summary-card p,
+.page-shell[data-page="home"] .panel-copy {
+  line-height: 1.2;
+}
+
+.page-shell[data-page="home"] .timer-display {
+  min-height: 76px;
+  font-size: clamp(1.6rem, 4vw, 2.6rem);
+  padding: 6px;
+}
+
+.page-shell[data-page="home"] .timer-status {
+  margin-top: 4px;
+}
+
+.page-shell[data-page="home"] .ai-coach-panel,
+.page-shell[data-page="home"] .coach-status-row {
+  margin-top: 6px;
+}
+
+.page-shell[data-page="home"] .study-plan-panel .panel-header,
+.page-shell[data-page="home"] .timer-panel .panel-header {
+  margin-bottom: 6px;
+}

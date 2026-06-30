@@ -3875,9 +3875,9 @@
     }
 
     appRoot.innerHTML = `
-      <main class="page-shell">
+      <main class="page-shell" data-page="${escapeHtml(state.currentPage)}">
         ${renderNavigation(state.currentPage, state.currentUser)}
-        <section class="hero hero-shell">
+        <section class="hero hero-shell" data-page="${escapeHtml(state.currentPage)}">
           ${pageContent}
         </section>
       </main>
