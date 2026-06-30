@@ -180,7 +180,7 @@ body::before {
   gap: 18px;
   padding: clamp(34px, 7vw, 72px);
   text-align: center;
-  border-radius: 38px;
+  border-radius: 24px;
 }
 
 .landing-logo {
@@ -260,7 +260,7 @@ body::before {
 }
 
 .auth-benefits div {
-  padding: 16px;
+  padding: 12px;
   border: 1px solid var(--frame);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.04);
@@ -403,7 +403,7 @@ body::before {
   border-radius: 38px;
   background: var(--surface);
   box-shadow: var(--shadow);
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 }
 
@@ -445,10 +445,10 @@ body::before {
 
 /* Small gold label above page titles. */
 .eyebrow {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  font-size: 0.72rem;
+  font-size: 0.64rem;
   font-weight: 700;
   color: var(--gold);
 }
@@ -621,7 +621,7 @@ h1 {
 }
 
 .workspace-grid {
-  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
   align-items: start;
 }
 
@@ -829,7 +829,7 @@ form,
 /* Stats page row for one subject. */
 .stat-row {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .stat-row-top {
@@ -843,7 +843,7 @@ form,
 .stat-values {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .stat-values {
@@ -1246,7 +1246,7 @@ button:hover {
 .insight-label {
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  font-size: 0.72rem;
+  font-size: 0.64rem;
   color: var(--gold);
 }
 
@@ -1349,7 +1349,7 @@ button:hover {
   position: relative;
   height: 280px;
   border-radius: 22px;
-  padding: 14px;
+  padding: 10px;
   background: var(--surface);
   border: 1px solid var(--frame);
   display: flex;
@@ -1407,7 +1407,7 @@ button:hover {
 
 .grade-study-label-date {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.64rem;
 }
 
 /* Clickable chart column. */
@@ -1809,7 +1809,7 @@ button:hover {
   display: grid;
   gap: 10px;
   min-height: 150px;
-  padding: 16px;
+  padding: 12px;
   border-radius: 22px;
   background: linear-gradient(180deg, rgba(176, 138, 75, 0.12), rgba(255, 244, 232, 0.04));
   border: 1px solid rgba(176, 138, 75, 0.22);
@@ -1999,7 +1999,7 @@ button:hover {
   border: 1px solid var(--frame);
   border-radius: var(--radius-md);
   background: var(--surface-soft);
-  padding: 16px;
+  padding: 12px;
 }
 
 .calendar-roadmap strong {
@@ -2022,7 +2022,7 @@ button:hover {
 .status-pill {
   border-radius: 999px;
   display: inline-flex;
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   font-weight: 800;
   line-height: 1;
   padding: 8px 10px;
