@@ -84,6 +84,7 @@ body {
   min-height: 100%;
 }
 
+
 /* Overall page background and text styling. */
 body {
   font-family: "DM Sans", sans-serif;
@@ -172,7 +173,7 @@ body::before {
   gap: 18px;
   padding: clamp(34px, 7vw, 72px);
   text-align: center;
-  border-radius: 38px;
+  border-radius: 24px;
 }
 
 .landing-logo {
@@ -252,7 +253,7 @@ body::before {
 }
 
 .auth-benefits div {
-  padding: 16px;
+  padding: 12px;
   border: 1px solid var(--frame);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.04);
@@ -280,21 +281,28 @@ body::before {
 
 /* Main centered site container. */
 .page-shell {
-  width: min(1520px, calc(100% - 40px));
+  width: min(1520px, calc(100% - 20px));
+  min-height: 100vh;
   margin: 0 auto;
-  padding: 28px 0 72px;
+  padding: 8px 0;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
 }
 
 /* Top navigation bar around logo, page links, and account controls. */
 .site-nav {
-  /* Top navigation shell. */
+  /* Left-side vertical navigation shell. */
   display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: center;
-  margin-bottom: 18px;
-  padding: 18px 22px;
-  border-radius: 999px;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 10px;
+  align-items: stretch;
+  min-height: 0;
+  margin-bottom: 0;
+  padding: 10px 8px;
+  border-radius: 18px;
   background: var(--surface);
   border: 1px solid var(--frame);
   box-shadow: var(--shadow);
@@ -304,14 +312,15 @@ body::before {
 
 /* AcademicTILT logo and text in the top navigation. */
 .brand-block {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
 }
 
 .brand-logo {
-  width: 46px;
-  height: 46px;
+  width: 34px;
+  height: 34px;
   flex: 0 0 auto;
   border: 1px solid var(--frame);
   border-radius: 14px;
@@ -321,15 +330,17 @@ body::before {
 
 .brand-block h2 {
   margin: 0;
-  font-size: 1.25rem;
-  letter-spacing: 0.03em;
+  font-size: 0.76rem;
+  letter-spacing: 0.02em;
 }
 
 /* Group of page-switching links in the top navigation. */
 .nav-links {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 4px;
+  flex-wrap: nowrap;
+  width: 100%;
 }
 
 /* User email and logout area in the top navigation. */
@@ -337,9 +348,11 @@ body::before {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-left: auto;
+  margin-left: 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.64rem;
+  justify-content: center;
+  text-align: center;
 }
 
 .nav-account strong {
@@ -353,7 +366,10 @@ body::before {
 
 /* Individual page link in the top navigation. */
 .nav-link {
-  padding: 10px 16px;
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 0.76rem;
+  text-align: left;
   background: transparent;
   color: var(--text);
   border: 1px solid transparent;
@@ -372,12 +388,13 @@ body::before {
 
 /* Main outer UI box used on every page. */
 .hero {
-  padding: 34px;
+  min-height: 0;
+  padding: 12px;
   border: 1px solid var(--frame);
   border-radius: 38px;
   background: var(--surface);
   box-shadow: var(--shadow);
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 }
 
@@ -397,31 +414,32 @@ body::before {
 
 .hero-shell {
   display: grid;
-  gap: 20px;
+  gap: 8px;
   position: relative;
+  min-height: 0;
 }
 
 /* Page title/description row at the top of each page. */
 .page-intro {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
-  gap: 24px;
+  gap: 10px;
   align-items: end;
-  padding-bottom: 6px;
+  padding-bottom: 2px;
   border-bottom: 1px solid var(--line);
 }
 
 .page-intro.compact h1 {
   max-width: 14ch;
-  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-size: clamp(1.3rem, 2vw, 1.9rem);
 }
 
 /* Small gold label above page titles. */
 .eyebrow {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  font-size: 0.72rem;
+  font-size: 0.64rem;
   font-weight: 700;
   color: var(--gold);
 }
@@ -434,7 +452,7 @@ h3 {
 }
 
 h1 {
-  font-size: clamp(2.7rem, 5vw, 4.7rem);
+  font-size: clamp(1.55rem, 2.6vw, 2.35rem);
   line-height: 0.94;
   max-width: 11ch;
 }
@@ -452,8 +470,8 @@ h1 {
 .hero-text {
   margin: 0;
   max-width: 56ch;
-  font-size: 1.03rem;
-  line-height: 1.75;
+  font-size: 0.78rem;
+  line-height: 1.3;
 }
 
 /* ==================== 6. HOME PAGE AND AI COACH BOXES ==================== */
@@ -464,8 +482,8 @@ h1 {
 .workspace-grid,
 .stats-grid {
   display: grid;
-  gap: 18px;
-  margin-top: 20px;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .home-grid {
@@ -530,7 +548,7 @@ h1 {
 }
 
 .coach-list-item {
-  padding: 14px 16px;
+  padding: 8px 10px;
   border-radius: 18px;
   background: var(--surface);
   border: 1px solid var(--frame);
@@ -553,7 +571,7 @@ h1 {
 }
 
 .research-source-list li {
-  padding: 14px 16px;
+  padding: 8px 10px;
   border-radius: 18px;
   background: var(--surface);
   border: 1px solid var(--frame);
@@ -578,7 +596,7 @@ h1 {
 
 .coach-alert {
   margin-top: 18px;
-  padding: 14px 16px;
+  padding: 8px 10px;
   border-radius: 18px;
   background: var(--accent-soft);
   border: 1px solid var(--accent-strong);
@@ -594,7 +612,7 @@ h1 {
 }
 
 .workspace-grid {
-  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
   align-items: start;
 }
 
@@ -615,7 +633,7 @@ h1 {
 /* Individual class card. */
 .class-card {
   text-align: left;
-  padding: 22px;
+  padding: 10px;
   border-radius: 24px;
   background: var(--surface);
   border: 1px solid var(--frame);
@@ -712,16 +730,16 @@ h1 {
 
 /* Large reusable UI panel spacing. */
 .panel {
-  padding: 28px;
+  padding: 12px;
 }
 
 /* Header row inside large panels. */
 .panel-header {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
+  gap: 12px;
   align-items: end;
-  margin-bottom: 24px;
+  margin-bottom: 8px;
 }
 
 .panel-copy {
@@ -802,7 +820,7 @@ form,
 /* Stats page row for one subject. */
 .stat-row {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .stat-row-top {
@@ -816,7 +834,7 @@ form,
 .stat-values {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .stat-values {
@@ -942,7 +960,7 @@ form,
   font-size: clamp(2.8rem, 8vw, 4.8rem);
   letter-spacing: 0.08em;
   text-align: center;
-  padding: 22px;
+  padding: 10px;
   border-radius: 24px;
   background: var(--surface);
   border: 1px solid var(--frame);
@@ -979,7 +997,7 @@ form,
   gap: 14px;
   flex-wrap: wrap;
   margin-bottom: 18px;
-  padding: 14px 16px;
+  padding: 8px 10px;
   border-radius: 18px;
   background: var(--accent-soft);
   border: 1px solid var(--accent-strong);
@@ -1009,7 +1027,7 @@ form,
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 10px;
 }
 
 /* Form field label wrapper. */
@@ -1020,7 +1038,7 @@ label {
 }
 
 label span {
-  font-size: 0.95rem;
+  font-size: 0.72rem;
 }
 
 /* Make form controls and buttons use the same font as the app. */
@@ -1040,7 +1058,7 @@ select {
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
-  padding: 14px 16px;
+  padding: 8px 10px;
   transition:
     border-color 180ms ease,
     box-shadow 180ms ease,
@@ -1137,7 +1155,7 @@ button {
   border: 0;
   cursor: pointer;
   border-radius: 999px;
-  padding: 12px 18px;
+  padding: 7px 10px;
   transition:
     transform 180ms ease,
     box-shadow 180ms ease,
@@ -1172,7 +1190,7 @@ button:hover {
   display: inline-flex;
   font: inherit;
   justify-content: center;
-  padding: 12px 18px;
+  padding: 7px 10px;
   text-decoration: none;
   transition:
     transform 180ms ease,
@@ -1219,7 +1237,7 @@ button:hover {
 .insight-label {
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  font-size: 0.72rem;
+  font-size: 0.64rem;
   color: var(--gold);
 }
 
@@ -1322,7 +1340,7 @@ button:hover {
   position: relative;
   height: 280px;
   border-radius: 22px;
-  padding: 14px;
+  padding: 10px;
   background: var(--surface);
   border: 1px solid var(--frame);
   display: flex;
@@ -1380,7 +1398,7 @@ button:hover {
 
 .grade-study-label-date {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.64rem;
 }
 
 /* Clickable chart column. */
@@ -1524,7 +1542,7 @@ button:hover {
   display: flex;
   justify-content: space-between;
   gap: 20px;
-  padding: 22px;
+  padding: 10px;
   border-radius: 22px;
   background: var(--surface);
   border: 1px solid var(--frame);
@@ -1547,7 +1565,7 @@ button:hover {
 }
 
 .session-title-row h3 {
-  font-size: 1.2rem;
+  font-size: 0.9rem;
 }
 
 .session-meta {
@@ -1555,12 +1573,12 @@ button:hover {
   gap: 14px;
   flex-wrap: wrap;
   margin: 8px 0 0;
-  font-size: 0.95rem;
+  font-size: 0.72rem;
 }
 
 .session-notes {
-  margin: 12px 0 0;
-  line-height: 1.6;
+  margin: 6px 0 0;
+  line-height: 1.25;
 }
 
 /* Small subject/category badge. */
@@ -1612,6 +1630,13 @@ button:hover {
 /* ==================== 11. TABLET LAYOUT ==================== */
 
 @media (max-width: 980px) {
+  .page-shell {
+    min-height: 100vh;
+    display: block;
+    overflow: visible;
+    padding: 20px 0 36px;
+  }
+
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1645,6 +1670,19 @@ button:hover {
     align-items: start;
   }
 
+  .site-nav {
+    margin-bottom: 18px;
+  }
+
+  .brand-block {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .nav-link {
+    text-align: center;
+  }
+
   .account-chip {
     text-align: left;
   }
@@ -1673,7 +1711,7 @@ button:hover {
 
   .hero,
   .panel {
-    padding: 22px;
+    padding: 10px;
   }
 
   .landing-shell {
@@ -1712,7 +1750,7 @@ button:hover {
   }
 
   .auth-card {
-    padding: 22px;
+    padding: 10px;
   }
 
   .chart-grid {
@@ -1756,7 +1794,7 @@ button:hover {
   display: grid;
   gap: 10px;
   min-height: 150px;
-  padding: 16px;
+  padding: 12px;
   border-radius: 22px;
   background: linear-gradient(180deg, rgba(176, 138, 75, 0.12), rgba(255, 244, 232, 0.04));
   border: 1px solid rgba(176, 138, 75, 0.22);
@@ -1946,7 +1984,7 @@ button:hover {
   border: 1px solid var(--frame);
   border-radius: var(--radius-md);
   background: var(--surface-soft);
-  padding: 16px;
+  padding: 12px;
 }
 
 .calendar-roadmap strong {
@@ -1969,7 +2007,7 @@ button:hover {
 .status-pill {
   border-radius: 999px;
   display: inline-flex;
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   font-weight: 800;
   line-height: 1;
   padding: 8px 10px;
